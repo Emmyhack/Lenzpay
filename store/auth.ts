@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '@/types/user';
+import { MOCK_USER } from '@/mock/data';
 
 interface AuthState {
   user: User | null;
@@ -13,9 +14,12 @@ interface AuthState {
   logout: () => void;
 }
 
+// Seeded with a mock user so the profile/home screens have realistic data
+// to render out of the box — swap for a real session once services/auth.ts
+// exists and the onboarding flow calls setUser() itself.
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
+  user: MOCK_USER,
+  isAuthenticated: true,
   hasPIN: false,
   hasCompletedOnboarding: false,
   setUser: (user) => set({ user }),

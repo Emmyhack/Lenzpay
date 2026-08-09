@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import type { Merchant, PaymentFlowState, PaymentMode, PaymentSource, SplitAllocation } from '@/types/payment';
+import type {
+  Merchant,
+  PaymentFlowState,
+  PaymentMode,
+  PaymentSource,
+  SplitAllocation,
+  Transaction,
+} from '@/types/payment';
 
 interface PaymentFlowStoreState {
   flowState: PaymentFlowState;
@@ -9,6 +16,7 @@ interface PaymentFlowStoreState {
   selectedSource: PaymentSource | null;
   splitAllocations: SplitAllocation[] | null;
   failureReason: string | null;
+  lastTransaction: Transaction | null;
 
   setMerchant: (merchant: Merchant) => void;
   setAmount: (amountNGN: number) => void;
@@ -16,6 +24,7 @@ interface PaymentFlowStoreState {
   selectSource: (source: PaymentSource) => void;
   setSplitAllocations: (allocations: SplitAllocation[]) => void;
   advance: (state: PaymentFlowState) => void;
+  succeed: (transaction: Transaction) => void;
   fail: (reason: string) => void;
   reset: () => void;
 }
@@ -28,6 +37,7 @@ const initialState = {
   selectedSource: null,
   splitAllocations: null,
   failureReason: null,
+  lastTransaction: null,
 };
 
 export const usePaymentStore = create<PaymentFlowStoreState>((set) => ({
@@ -38,6 +48,7 @@ export const usePaymentStore = create<PaymentFlowStoreState>((set) => ({
   selectSource: (selectedSource) => set({ selectedSource, flowState: 'source_selected' }),
   setSplitAllocations: (splitAllocations) => set({ splitAllocations, flowState: 'split_confirmed' }),
   advance: (flowState) => set({ flowState }),
+  succeed: (lastTransaction) => set({ lastTransaction, flowState: 'success' }),
   fail: (failureReason) => set({ failureReason, flowState: 'failed' }),
   reset: () => set(initialState),
 }));

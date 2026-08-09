@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useSegments } from 'expo-router';
 import { Text, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/theme';
 
@@ -10,18 +10,28 @@ const TAB_ICON: Record<string, string> = {
   security: '🛡️',
 };
 
+// Sub-routes of the scan flow that take over the whole screen (merchant
+// sheet, PIN/biometric gate, processing, success, failed) — the tab bar
+// bleeding through here would let someone tab away mid-payment.
+const TAB_BAR_HIDDEN_SEGMENTS = new Set(['merchant', 'confirm', 'processing', 'success', 'failed']);
+
 export default function ConsumerLayout() {
+  const segments = useSegments();
+  const hideTabBar = segments.some((segment) => TAB_BAR_HIDDEN_SEGMENTS.has(segment));
+
   return (
     <Tabs
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.onSurfaceMuted,
-        tabBarStyle: {
-          backgroundColor: Colors.surfaceContainerLow,
-          borderTopColor: Colors.outlineVariant,
-          borderTopWidth: StyleSheet.hairlineWidth,
-        },
+        tabBarStyle: hideTabBar
+          ? { display: 'none' }
+          : {
+              backgroundColor: Colors.surfaceContainerLow,
+              borderTopColor: Colors.outlineVariant,
+              borderTopWidth: StyleSheet.hairlineWidth,
+            },
         tabBarLabelStyle: { fontFamily: 'Inter_500Medium', fontSize: 11 },
         tabBarIcon: ({ color }) => <Text style={{ fontSize: 18, color }}>{TAB_ICON[route.name] ?? '•'}</Text>,
       })}

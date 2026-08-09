@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { CameraView, type BarcodeScanningResult } from 'expo-camera';
 import Svg, { Path } from 'react-native-svg';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
@@ -31,7 +31,6 @@ function CornerBracket({ style }: { style: object }) {
 }
 
 export function QRViewport({ onScanned, active = true, torchOn = false }: QRViewportProps) {
-  const { width } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
   const sweepY = useSharedValue(0);
 
@@ -56,7 +55,7 @@ export function QRViewport({ onScanned, active = true, torchOn = false }: QRView
       />
 
       <View style={styles.overlay} pointerEvents="none">
-        <View style={[styles.frame, { left: (width - FRAME_SIZE) / 2 }]}>
+        <View style={styles.frame}>
           <CornerBracket style={styles.topLeft} />
           <CornerBracket style={[styles.topRight, { transform: [{ rotate: '90deg' }] }]} />
           <CornerBracket style={[styles.bottomRight, { transform: [{ rotate: '180deg' }] }]} />

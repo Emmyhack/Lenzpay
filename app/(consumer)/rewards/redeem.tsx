@@ -1,0 +1,142 @@
+import { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { ScreenHeader } from '@/components/shared/ScreenHeader';
+import { Slider } from '@/components/ui/Slider';
+import { Button } from '@/components/ui/Button';
+import { useRewardsStore } from '@/store/rewards';
+import { redeemPoints } from '@/services/rewards';
+import { showToast } from '@/components/ui/Toast';
+import type { RedemptionMethod } from '@/types/rewards';
+
+const METHODS: { key: RedemptionMethod; label: string; icon: string; subtitle: string }[] = [
+  { key: 'cashback', label: 'Cashback', icon: '💰', subtitle: 'Straight to your default source' },
+  { key: 'airtime', label: 'Airtime', icon: '📶', subtitle: 'Top up your phone instantly' },
+  { key: 'bank_transfer', label: 'Bank Transfer', icon: '🏦', subtitle: '1-3 business days' },
+];
+
+const POINTS_PER_NGN = 2; // 2 pts = ₦1
+
+export default function RedeemScreen() {
+  const router = useRouter();
+  const points = useRewardsStore((s) => s.points);
+  const redeemFromStore = useRewardsStore((s) => s.redeemPoints);
+
+  const [method, setMethod] = useState<RedemptionMethod>('cashback');
+  const [ratio, setRatio] = useState(0.5);
+  const [redeeming, setRedeeming] = useState(false);
+
+  const pointsToRedeem = Math.round(points * ratio);
+  const valueNGN = Math.floor(pointsToRedeem / POINTS_PER_NGN);
+
+  const handleRedeem = async () => {
+    if (pointsToRedeem <= 0) return;
+    setRedeeming(true);
+    await redeemPoints(method, pointsToRedeem);
+    redeemFromStore(pointsToRedeem);
+    setRedeeming(false);
+    showToast('success', `Redeemed ₦${valueNGN.toLocaleString()}`);
+    router.back();
+  };
+
+  return (
+    <View style={styles.wrap}>
+      <ScreenHeader title="Redeem Points" subtitle={`${points.toLocaleString()} pts available`} />
+
+      <View style={styles.body}>
+        {METHODS.map((m) => (
+          <TouchableOpacity
+            key={m.key}
+            onPress={() => setMethod(m.key)}
+            style={[styles.methodCard, method === m.key && styles.methodCardActive]}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.methodIcon}>{m.icon}</Text>
+            <View style={styles.methodInfo}>
+              <Text style={styles.methodLabel}>{m.label}</Text>
+              <Text style={styles.methodSubtitle}>{m.subtitle}</Text>
+            </View>
+            {method === m.key ? <Text style={styles.check}>✓</Text> : null}
+          </TouchableOpacity>
+        ))}
+
+        <View style={styles.sliderSection}>
+          <Text style={styles.sliderLabel}>How many points?</Text>
+          <Slider value={ratio} onChange={setRatio} />
+          <Text style={styles.previewText}>
+            {pointsToRedeem.toLocaleString()} pts = ₦{valueNGN.toLocaleString()}
+          </Text>
+        </View>
+
+        <Button
+          label={`Redeem ₦${valueNGN.toLocaleString()}`}
+          onPress={handleRedeem}
+          loading={redeeming}
+          disabled={pointsToRedeem <= 0}
+          style={styles.submit}
+        />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  body: {
+    paddingHorizontal: Spacing.xl,
+  },
+  methodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.sm,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  methodCardActive: {
+    borderColor: Colors.primary,
+  },
+  methodIcon: { fontSize: 22 },
+  methodInfo: { flex: 1 },
+  methodLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: Typography.bodyMd.fontSize,
+    color: Colors.onSurface,
+  },
+  methodSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
+    marginTop: 2,
+  },
+  check: {
+    color: Colors.primary,
+    fontSize: 18,
+  },
+  sliderSection: {
+    marginTop: Spacing.xxl,
+  },
+  sliderLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceVariant,
+    marginBottom: Spacing.lg,
+  },
+  previewText: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: Typography.titleMd.fontSize,
+    color: Colors.primary,
+    textAlign: 'center',
+    marginTop: Spacing.lg,
+  },
+  submit: {
+    marginTop: Spacing.xxl,
+  },
+});

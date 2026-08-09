@@ -11,6 +11,12 @@ interface SecurityState {
   perTxnLimitNGN: number;
   hasFraudAlert: boolean;
 
+  // Fraud protection toggles
+  newDeviceAlerts: boolean;
+  unusualAmountAlerts: boolean;
+  internationalBlocked: boolean;
+  autoLockAfterFailedPin: boolean;
+
   setBiometricPref: (pref: BiometricPref) => void;
   toggleFaceId: (value: boolean) => void;
   togglePinRequired: (value: boolean) => void;
@@ -18,6 +24,10 @@ interface SecurityState {
   setDailyLimit: (value: number) => void;
   setPerTxnLimit: (value: number) => void;
   clearFraudAlert: () => void;
+  toggleNewDeviceAlerts: (value: boolean) => void;
+  toggleUnusualAmountAlerts: (value: boolean) => void;
+  toggleInternationalBlocked: (value: boolean) => void;
+  toggleAutoLockAfterFailedPin: (value: boolean) => void;
 }
 
 export const useSecurityStore = create<SecurityState>((set) => ({
@@ -27,7 +37,12 @@ export const useSecurityStore = create<SecurityState>((set) => ({
   skipPinBelowThreshold: true,
   dailyLimitNGN: TransactionLimits.defaultDailyLimitNGN,
   perTxnLimitNGN: TransactionLimits.defaultPerTxnLimitNGN,
-  hasFraudAlert: false,
+  hasFraudAlert: true,
+
+  newDeviceAlerts: true,
+  unusualAmountAlerts: true,
+  internationalBlocked: false,
+  autoLockAfterFailedPin: true,
 
   setBiometricPref: (biometricPref) => set({ biometricPref }),
   toggleFaceId: (faceIdEnabled) => set({ faceIdEnabled }),
@@ -36,4 +51,8 @@ export const useSecurityStore = create<SecurityState>((set) => ({
   setDailyLimit: (dailyLimitNGN) => set({ dailyLimitNGN }),
   setPerTxnLimit: (perTxnLimitNGN) => set({ perTxnLimitNGN }),
   clearFraudAlert: () => set({ hasFraudAlert: false }),
+  toggleNewDeviceAlerts: (newDeviceAlerts) => set({ newDeviceAlerts }),
+  toggleUnusualAmountAlerts: (unusualAmountAlerts) => set({ unusualAmountAlerts }),
+  toggleInternationalBlocked: (internationalBlocked) => set({ internationalBlocked }),
+  toggleAutoLockAfterFailedPin: (autoLockAfterFailedPin) => set({ autoLockAfterFailedPin }),
 }));

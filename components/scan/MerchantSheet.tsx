@@ -47,7 +47,7 @@ export function MerchantSheet({ merchant, onContinue, onScanAgain }: MerchantShe
               <Text style={styles.iconGlyph}>{merchant.icon}</Text>
             </View>
             <Text style={styles.merchantName}>{merchant.name}</Text>
-            {merchant.isVerified ? <Badge kind="VERIFIED" /> : null}
+            {merchant.isVerified ? <Badge kind="VERIFIED" style={styles.centeredBadge} /> : null}
             <Text style={styles.location}>{merchant.location}</Text>
           </View>
 
@@ -102,6 +102,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.headlineSm.fontSize,
     color: Colors.onSurface,
     marginBottom: Spacing.xs,
+  },
+  centeredBadge: {
+    alignSelf: 'center',
   },
   location: {
     fontFamily: 'Inter_400Regular',

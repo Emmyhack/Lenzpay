@@ -158,6 +158,7 @@ export default function WelcomeScreen() {
 
       <FlatList
         ref={listRef}
+        style={styles.list}
         data={SLIDES}
         horizontal
         pagingEnabled
@@ -206,10 +207,13 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySm.fontSize,
     color: Colors.onSurfaceVariant,
   },
+  list: {
+    flex: 1,
+  },
   slide: {
     alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.xxxl,
   },
   art: {
     height: 180,

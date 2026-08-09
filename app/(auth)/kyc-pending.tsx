@@ -2,27 +2,11 @@ import { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { SpinningRing } from '@/components/shared/SpinningRing';
 import { fetchKYCStatus } from '@/services/kyc';
 import { Config } from '@/constants/config';
 import { useAuthStore } from '@/store/auth';
-
-function SpinningRing() {
-  const rotation = useSharedValue(0);
-
-  useEffect(() => {
-    rotation.value = withRepeat(withTiming(360, { duration: 1200, easing: Easing.linear }), -1, false);
-  }, [rotation]);
-
-  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
-
-  return (
-    <Animated.View style={[styles.ring, style]}>
-      <View style={styles.ringGap} />
-    </Animated.View>
-  );
-}
 
 export default function KYCPendingScreen() {
   const router = useRouter();
@@ -48,7 +32,9 @@ export default function KYCPendingScreen() {
 
   return (
     <View style={styles.wrap}>
-      <SpinningRing />
+      <View style={styles.ringWrap}>
+        <SpinningRing />
+      </View>
       <Text style={styles.title}>Verifying your identity…</Text>
       <Text style={styles.subtitle}>Usually takes under 30 seconds</Text>
       <Text style={styles.link} onPress={handleGoHome}>
@@ -58,8 +44,6 @@ export default function KYCPendingScreen() {
   );
 }
 
-const RING_SIZE = 64;
-
 const styles = StyleSheet.create({
   wrap: {
     flex: 1,
@@ -68,17 +52,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
   },
-  ring: {
-    width: RING_SIZE,
-    height: RING_SIZE,
-    borderRadius: RING_SIZE / 2,
-    borderWidth: 4,
-    borderColor: Colors.surfaceContainerHigh,
-    borderTopColor: Colors.primary,
+  ringWrap: {
     marginBottom: Spacing.xl,
-  },
-  ringGap: {
-    flex: 1,
   },
   title: {
     fontFamily: 'SpaceGrotesk_500Medium',

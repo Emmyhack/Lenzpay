@@ -1,4 +1,17 @@
 import type { PaymentSource, Transaction, Merchant } from '@/types/payment';
+import type { User } from '@/types/user';
+
+export const MOCK_USER: User = {
+  id: 'usr_001',
+  fullName: 'Ada Okafor',
+  phone: '+2348012345678',
+  email: 'ada.okafor@example.com',
+  avatarInitials: 'AO',
+  kycStatus: 'verified',
+  biometricPref: 'faceId',
+  referralCode: 'ADA2026',
+  createdAt: new Date('2025-11-02'),
+};
 
 export const MOCK_SOURCES: PaymentSource[] = [
   {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 export type BadgeKind =
@@ -17,6 +17,9 @@ export type BadgeKind =
 interface BadgeProps {
   kind: BadgeKind;
   label?: string; // override display text
+  /** Override the default flex-start self-alignment — set when the badge
+   * sits in a centered/column layout instead of a left-aligned row. */
+  style?: ViewStyle;
 }
 
 const BADGE_COLOR: Record<BadgeKind, string> = {
@@ -45,10 +48,10 @@ const BADGE_LABEL: Record<BadgeKind, string> = {
   DEFAULT: 'Default',
 };
 
-export function Badge({ kind, label }: BadgeProps) {
+export function Badge({ kind, label, style }: BadgeProps) {
   const color = BADGE_COLOR[kind];
   return (
-    <View style={[styles.base, { backgroundColor: color + '20' }]}>
+    <View style={[styles.base, { backgroundColor: color + '20' }, style]}>
       <Text style={[styles.text, { color }]}>{label ?? BADGE_LABEL[kind]}</Text>
     </View>
   );

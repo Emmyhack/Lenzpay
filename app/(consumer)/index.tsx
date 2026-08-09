@@ -91,7 +91,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionTitle title="My Sources" rightLabel="Manage" onPressRight={() => router.push('/(consumer)/sources')} />
+        <SectionTitle title="My Sources" rightLabel="Manage" onPressRight={() => router.push('/(consumer)/sources')} padded />
         {sources.length > 0 ? (
           <SourceScrollRow sources={sources} onPressSource={(s) => router.push(`/(consumer)/sources/${s.id}`)} />
         ) : (
@@ -106,7 +106,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionTitle title="Recent" rightLabel="See all →" onPressRight={() => router.push('/(consumer)/history')} />
+        <SectionTitle title="Recent" rightLabel="See all →" onPressRight={() => router.push('/(consumer)/history')} padded />
         {recentTransactions.length > 0 ? (
           recentTransactions.map((txn) => (
             <TransactionRow key={txn.id} transaction={txn} onPress={() => router.push(`/(consumer)/history/${txn.id}`)} />

@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: Typography.displayMd.fontSize,
     color: Colors.onSurface,
-    minWidth: 80,
-    textAlign: 'center',
+    width: 180,
+    textAlign: 'left',
   },
   equivalents: {
     fontFamily: 'Inter_400Regular',

@@ -66,7 +66,9 @@ export function Button({
             {loading ? (
               <ActivityIndicator color={Colors.onPrimary} />
             ) : (
-              <Text style={[styles.primaryText, disabled && styles.disabledText]}>{label}</Text>
+              <Text style={[styles.primaryText, disabled && styles.disabledText]} numberOfLines={1} adjustsFontSizeToFit>
+                {label}
+              </Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -94,7 +96,11 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={variant === 'tertiary' ? Colors.secondary : Colors.onSurface} />
       ) : (
-        <Text style={[styles.text, styles[`${variant}Text` as keyof typeof styles] as TextStyle]}>
+        <Text
+          style={[styles.text, styles[`${variant}Text` as keyof typeof styles] as TextStyle]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
           {label}
         </Text>
       )}
