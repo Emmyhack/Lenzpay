@@ -3,22 +3,23 @@ import { useRouter } from 'expo-router';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Badge } from '@/components/ui/Badge';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuthStore } from '@/store/auth';
 import { showToast } from '@/components/ui/Toast';
 
 interface ProfileLink {
   key: string;
   label: string;
-  icon: string;
+  icon: IconName;
   route: '/(consumer)/profile/settings' | '/(consumer)/profile/rates' | '/(consumer)/profile/support' | '/(consumer)/security' | '/(consumer)/sources';
 }
 
 const LINKS: ProfileLink[] = [
-  { key: 'sources', label: 'Payment Sources', icon: '🏦', route: '/(consumer)/sources' },
-  { key: 'security', label: 'Security', icon: '🛡️', route: '/(consumer)/security' },
-  { key: 'rates', label: 'Live FX Rates', icon: '💱', route: '/(consumer)/profile/rates' },
-  { key: 'settings', label: 'Settings', icon: '⚙️', route: '/(consumer)/profile/settings' },
-  { key: 'support', label: 'Help & Support', icon: '💬', route: '/(consumer)/profile/support' },
+  { key: 'sources', label: 'Payment Sources', icon: 'business-outline', route: '/(consumer)/sources' },
+  { key: 'security', label: 'Security', icon: 'shield-checkmark-outline', route: '/(consumer)/security' },
+  { key: 'rates', label: 'Live FX Rates', icon: 'swap-horizontal-outline', route: '/(consumer)/profile/rates' },
+  { key: 'settings', label: 'Settings', icon: 'settings-outline', route: '/(consumer)/profile/settings' },
+  { key: 'support', label: 'Help & Support', icon: 'chatbubble-outline', route: '/(consumer)/profile/support' },
 ];
 
 export default function ProfileScreen() {
@@ -26,7 +27,7 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  const initials = user?.avatarInitials ?? '🙂';
+  const initials = user?.avatarInitials;
 
   const handleLogout = () => {
     logout();
@@ -41,21 +42,25 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
+            {initials ? (
+              <Text style={styles.avatarText}>{initials}</Text>
+            ) : (
+              <Icon name="person" size={28} color={Colors.onSurface} />
+            )}
           </View>
           <Text style={styles.name}>{user?.fullName ?? 'Guest'}</Text>
           <Text style={styles.phone}>{user?.phone}</Text>
           {user?.kycStatus === 'verified' ? (
-            <Badge kind="VERIFIED" label="✓ KYC Verified" style={styles.verifiedBadge} />
+            <Badge kind="VERIFIED" label="KYC Verified" style={styles.verifiedBadge} />
           ) : null}
         </View>
 
         <View style={styles.linkList}>
           {LINKS.map((link) => (
             <TouchableOpacity key={link.key} onPress={() => router.push(link.route)} style={styles.linkRow}>
-              <Text style={styles.linkIcon}>{link.icon}</Text>
+              <Icon name={link.icon} size={20} color={Colors.onSurfaceVariant} />
               <Text style={styles.linkLabel}>{link.label}</Text>
-              <Text style={styles.chevron}>›</Text>
+              <Icon name="chevron-forward" size={18} color={Colors.onSurfaceMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -122,16 +127,11 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     marginBottom: Spacing.sm,
   },
-  linkIcon: { fontSize: 18 },
   linkLabel: {
     flex: 1,
     fontFamily: 'Inter_600SemiBold',
     fontSize: Typography.bodyMd.fontSize,
     color: Colors.onSurface,
-  },
-  chevron: {
-    color: Colors.onSurfaceMuted,
-    fontSize: 18,
   },
   logoutRow: {
     alignItems: 'center',

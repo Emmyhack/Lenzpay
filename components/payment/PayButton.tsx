@@ -13,11 +13,12 @@ interface PayButtonProps {
  * live payment amount and whether usePaymentLogic found a way to cover it.
  */
 export function PayButton({ amountNGN, isCoverable, loading = false, onPress }: PayButtonProps) {
-  const label = amountNGN > 0 ? `Pay ₦${amountNGN.toLocaleString()} →` : 'Enter an amount';
+  const label = amountNGN > 0 ? `Pay ₦${amountNGN.toLocaleString()}` : 'Enter an amount';
 
   return (
     <Button
       label={label}
+      trailingArrow={amountNGN > 0}
       onPress={onPress}
       loading={loading}
       disabled={amountNGN <= 0 || !isCoverable}

@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
+import { BankLogo } from '@/components/ui/BankLogo';
 import { useSourcesStore } from '@/store/sources';
 import { addBankSource } from '@/services/sources';
 import { NIGERIAN_BANKS, type NigerianBank } from '@/mock/banks';
@@ -44,7 +46,7 @@ export default function AddBankScreen() {
     if (!selectedBank) return;
     setLinking(true);
     const source = await addBankSource(accountNumber, selectedBank.code);
-    addSource({ ...source, label: selectedBank.name });
+    addSource({ ...source, label: selectedBank.name, bankCode: selectedBank.code });
     setLinking(false);
     showToast('success', 'Bank linked', `${selectedBank.name} added to your sources.`);
     router.back();
@@ -57,10 +59,13 @@ export default function AddBankScreen() {
       <View style={styles.form}>
         <Text style={styles.label}>Bank</Text>
         <TouchableOpacity onPress={() => setPickerOpen(true)} style={styles.bankSelector}>
-          <Text style={selectedBank ? styles.bankSelectorText : styles.bankSelectorPlaceholder}>
-            {selectedBank?.name ?? 'Select your bank'}
-          </Text>
-          <Text style={styles.chevron}>›</Text>
+          <View style={styles.bankSelectorLeft}>
+            {selectedBank ? <BankLogo code={selectedBank.code} name={selectedBank.name} size={28} /> : null}
+            <Text style={selectedBank ? styles.bankSelectorText : styles.bankSelectorPlaceholder}>
+              {selectedBank?.name ?? 'Select your bank'}
+            </Text>
+          </View>
+          <Icon name="chevron-forward" size={18} color={Colors.onSurfaceMuted} />
         </TouchableOpacity>
 
         <Text style={[styles.label, styles.spaced]}>Account number</Text>
@@ -79,7 +84,10 @@ export default function AddBankScreen() {
             <Text style={styles.resolveText}>Resolving account name…</Text>
           </View>
         ) : resolvedName ? (
-          <Text style={styles.resolvedName}>✓ {resolvedName}</Text>
+          <View style={styles.resolveRow}>
+            <Icon name="checkmark-circle" size={14} color={Colors.success} />
+            <Text style={styles.resolvedName}>{resolvedName}</Text>
+          </View>
         ) : null}
 
         <Text style={[styles.label, styles.spaced]}>Account type</Text>
@@ -97,7 +105,7 @@ export default function AddBankScreen() {
           ))}
         </View>
 
-        <Button label="Link Account →" onPress={handleLink} disabled={!canSubmit} loading={linking} style={styles.submit} />
+        <Button label="Link Account" trailingArrow onPress={handleLink} disabled={!canSubmit} loading={linking} style={styles.submit} />
       </View>
 
       <Modal visible={pickerOpen} animationType="slide" onRequestClose={() => setPickerOpen(false)}>
@@ -123,6 +131,7 @@ export default function AddBankScreen() {
                   setSearch('');
                 }}
               >
+                <BankLogo code={item.code} name={item.name} size={32} />
                 <Text style={styles.bankRowText}>{item.name}</Text>
               </TouchableOpacity>
             )}
@@ -160,6 +169,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
+  bankSelectorLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   bankSelectorText: {
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodyMd.fontSize,
@@ -169,10 +184,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodyMd.fontSize,
     color: Colors.onSurfaceMuted,
-  },
-  chevron: {
-    color: Colors.onSurfaceMuted,
-    fontSize: 18,
   },
   input: {
     backgroundColor: Colors.surfaceContainerHighest,
@@ -198,7 +209,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
     color: Colors.success,
-    marginTop: Spacing.sm,
   },
   typeRow: {
     flexDirection: 'row',
@@ -247,11 +257,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl,
   },
   bankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.outlineVariant,
   },
   bankRowText: {
+    flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodyMd.fontSize,
     color: Colors.onSurface,

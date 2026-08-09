@@ -1,8 +1,9 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, Text, View, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Colors, Radius, Elevation } from '@/constants/theme';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 type Variant = 'primary' | 'secondary' | 'tertiary' | 'destructive';
 
@@ -14,6 +15,11 @@ interface ButtonProps {
   disabled?: boolean;
   fullWidth?: boolean;
   style?: ViewStyle;
+  /** Leading icon — replaces the old inline emoji-prefix convention (e.g. "⚡ Default"). */
+  icon?: IconName;
+  /** Appends a trailing forward-arrow icon — the vector replacement for the
+   * old inline "→" copy convention used on most CTA buttons. */
+  trailingArrow?: boolean;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -26,6 +32,8 @@ export function Button({
   disabled = false,
   fullWidth = true,
   style,
+  icon,
+  trailingArrow = false,
 }: ButtonProps) {
   const scale = useSharedValue(1);
 
@@ -66,9 +74,17 @@ export function Button({
             {loading ? (
               <ActivityIndicator color={Colors.onPrimary} />
             ) : (
-              <Text style={[styles.primaryText, disabled && styles.disabledText]} numberOfLines={1} adjustsFontSizeToFit>
-                {label}
-              </Text>
+              <View style={styles.labelRow}>
+                {icon ? (
+                  <Icon name={icon} size={16} color={disabled ? Colors.onSurfaceMuted : Colors.onPrimary} />
+                ) : null}
+                <Text style={[styles.primaryText, disabled && styles.disabledText]} numberOfLines={1} adjustsFontSizeToFit>
+                  {label}
+                </Text>
+                {trailingArrow ? (
+                  <Icon name="arrow-forward" size={16} color={disabled ? Colors.onSurfaceMuted : Colors.onPrimary} />
+                ) : null}
+              </View>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -96,13 +112,29 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={variant === 'tertiary' ? Colors.secondary : Colors.onSurface} />
       ) : (
-        <Text
-          style={[styles.text, styles[`${variant}Text` as keyof typeof styles] as TextStyle]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-        >
-          {label}
-        </Text>
+        <View style={styles.labelRow}>
+          {icon ? (
+            <Icon
+              name={icon}
+              size={16}
+              color={(styles[`${variant}Text` as keyof typeof styles] as TextStyle)?.color as string}
+            />
+          ) : null}
+          <Text
+            style={[styles.text, styles[`${variant}Text` as keyof typeof styles] as TextStyle]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {label}
+          </Text>
+          {trailingArrow ? (
+            <Icon
+              name="arrow-forward"
+              size={16}
+              color={(styles[`${variant}Text` as keyof typeof styles] as TextStyle)?.color as string}
+            />
+          ) : null}
+        </View>
       )}
     </AnimatedTouchable>
   );
@@ -117,6 +149,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fullWidth: { width: '100%' },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   primaryGradient: {
     width: '100%',
     paddingVertical: 16,

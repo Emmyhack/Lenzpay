@@ -25,7 +25,7 @@ export default function MerchantPaymentsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          !isLoading ? <EmptyState icon="💳" title="No payments yet" /> : null
+          !isLoading ? <EmptyState icon="card-outline" title="No payments yet" /> : null
         }
         renderItem={({ item }) => (
           <View style={styles.row}>

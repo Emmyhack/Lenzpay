@@ -7,18 +7,12 @@ import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fetchTransactionById } from '@/services/payments';
 import { showToast } from '@/components/ui/Toast';
+import { CATEGORY_ICON } from '@/mock/data';
 import type { Transaction } from '@/types/payment';
-
-const CATEGORY_ICON: Record<string, string> = {
-  transport: '🚗',
-  food: '☕',
-  shopping: '🛒',
-  crypto: '₿',
-  other: '💳',
-};
 
 function formatDateTime(date: Date) {
   return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -39,7 +33,7 @@ export default function TransactionDetailScreen() {
     return (
       <View style={styles.wrap}>
         <ScreenHeader title="Transaction" />
-        <EmptyState icon="🧾" title="Transaction not found" />
+        <EmptyState icon="receipt-outline" title="Transaction not found" />
       </View>
     );
   }
@@ -68,7 +62,7 @@ export default function TransactionDetailScreen() {
 
       <View style={styles.body}>
         <View style={styles.iconCircle}>
-          <Text style={styles.icon}>{CATEGORY_ICON[transaction.category] ?? '💳'}</Text>
+          <Icon name={CATEGORY_ICON[transaction.category] ?? CATEGORY_ICON.other} size={28} color={Colors.onSurface} />
         </View>
 
         <Text style={[styles.amount, { color: isCredit ? Colors.success : Colors.onSurface }]}>
@@ -126,7 +120,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: Spacing.lg,
   },
-  icon: { fontSize: 28 },
   amount: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: Typography.displayMd.fontSize,

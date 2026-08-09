@@ -6,6 +6,7 @@ import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
+import { Icon } from '@/components/ui/Icon';
 import { showToast } from '@/components/ui/Toast';
 import { submitKYC, type KYCSubmission } from '@/services/kyc';
 
@@ -28,14 +29,14 @@ function CaptureCard({ label, uri, onCapture }: CaptureCardProps) {
         <Image source={{ uri }} style={styles.captureThumb} />
       ) : (
         <View style={styles.capturePlaceholder}>
-          <Text style={styles.captureIcon}>📷</Text>
+          <Icon name="camera-outline" size={22} color={Colors.onSurfaceVariant} />
         </View>
       )}
       <View style={styles.captureInfo}>
         <Text style={styles.captureLabel}>{label}</Text>
         <Text style={styles.captureHint}>{uri ? 'Tap to retake' : 'Tap to capture'}</Text>
       </View>
-      {uri ? <Text style={styles.captureCheck}>✓</Text> : null}
+      {uri ? <Icon name="checkmark-circle" size={20} color={Colors.success} /> : null}
     </TouchableOpacity>
   );
 }
@@ -193,7 +194,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  captureIcon: { fontSize: 22 },
   captureInfo: { flex: 1 },
   captureLabel: {
     fontFamily: 'Inter_600SemiBold',
@@ -205,10 +205,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.onSurfaceVariant,
     marginTop: 2,
-  },
-  captureCheck: {
-    color: Colors.success,
-    fontSize: 18,
   },
   submit: {
     marginTop: Spacing.xl,

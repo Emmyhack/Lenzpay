@@ -4,6 +4,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { MOCK_NOTIFICATIONS, type AppNotification, type NotificationKind } from '@/mock/notifications';
 
 const KIND_ACCENT: Record<NotificationKind, string> = {
@@ -12,10 +13,10 @@ const KIND_ACCENT: Record<NotificationKind, string> = {
   points: Colors.primary,
 };
 
-const KIND_ICON: Record<NotificationKind, string> = {
-  fraud: '🚨',
-  payment: '💸',
-  points: '⭐',
+const KIND_ICON: Record<NotificationKind, IconName> = {
+  fraud: 'warning',
+  payment: 'cash-outline',
+  points: 'star',
 };
 
 function isToday(date: Date) {
@@ -40,7 +41,7 @@ function NotificationCard({ notification, onDismiss }: { notification: AppNotifi
       onSwipeableOpen={onDismiss}
     >
       <View style={[styles.card, { backgroundColor: accent + '14', borderLeftColor: accent }]}>
-        <Text style={styles.cardIcon}>{KIND_ICON[notification.kind]}</Text>
+        <Icon name={KIND_ICON[notification.kind]} size={20} color={accent} />
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle}>{notification.title}</Text>
           <Text style={styles.cardText}>{notification.body}</Text>
@@ -71,7 +72,7 @@ export default function NotificationsScreen() {
     <View style={styles.wrap}>
       <ScreenHeader title="Notifications" />
       {sections.length === 0 ? (
-        <EmptyState icon="✅" title="You're all caught up" message="No new notifications." />
+        <EmptyState icon="checkmark-done-circle-outline" title="You're all caught up" message="No new notifications." />
       ) : (
         <SectionList
           sections={sections}
@@ -112,9 +113,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderLeftWidth: 3,
     padding: Spacing.lg,
-  },
-  cardIcon: {
-    fontSize: 20,
   },
   cardBody: { flex: 1 },
   cardTitle: {

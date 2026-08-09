@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Linking, StyleSheet } from 'r
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { SectionTitle } from '@/components/shared/SectionTitle';
+import { Icon } from '@/components/ui/Icon';
 import { showToast } from '@/components/ui/Toast';
 
 interface FAQ {
@@ -38,7 +39,7 @@ function FAQItem({ faq }: { faq: FAQ }) {
     <TouchableOpacity onPress={() => setExpanded((v) => !v)} style={styles.faqCard} activeOpacity={0.85}>
       <View style={styles.faqHeader}>
         <Text style={styles.faqQuestion}>{faq.question}</Text>
-        <Text style={styles.faqChevron}>{expanded ? '︿' : '﹀'}</Text>
+        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.primary} />
       </View>
       {expanded ? <Text style={styles.faqAnswer}>{faq.answer}</Text> : null}
     </TouchableOpacity>
@@ -61,11 +62,15 @@ export default function SupportScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.contactRow}>
           <TouchableOpacity onPress={handleChat} style={styles.contactCard}>
-            <Text style={styles.contactIcon}>💬</Text>
+            <View style={styles.contactIconWrap}>
+              <Icon name="chatbubble-ellipses" size={22} color={Colors.primary} />
+            </View>
             <Text style={styles.contactLabel}>Live Chat</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleEmail} style={styles.contactCard}>
-            <Text style={styles.contactIcon}>✉️</Text>
+            <View style={styles.contactIconWrap}>
+              <Icon name="mail" size={22} color={Colors.primary} />
+            </View>
             <Text style={styles.contactLabel}>Email Us</Text>
           </TouchableOpacity>
         </View>
@@ -103,7 +108,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     paddingVertical: Spacing.xl,
   },
-  contactIcon: { fontSize: 24 },
+  contactIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   contactLabel: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: Typography.bodySm.fontSize,
@@ -130,10 +142,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySm.fontSize,
     color: Colors.onSurface,
     marginRight: Spacing.md,
-  },
-  faqChevron: {
-    color: Colors.primary,
-    fontSize: 12,
   },
   faqAnswer: {
     fontFamily: 'Inter_400Regular',

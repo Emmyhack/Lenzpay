@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { BiometricGate } from '@/components/auth/BiometricGate';
 import { PINPad } from '@/components/auth/PINPad';
@@ -12,6 +13,7 @@ const MAX_ATTEMPTS = 3;
 
 export default function ConfirmScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { verifyPIN } = usePIN();
   const amountNGN = usePaymentStore((s) => s.amountNGN);
   const merchant = usePaymentStore((s) => s.merchant);
@@ -56,7 +58,7 @@ export default function ConfirmScreen() {
   );
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { paddingTop: insets.top + Spacing.xxxl }]}>
       <View style={styles.summary}>
         <Text style={styles.amount}>₦{amountNGN.toLocaleString()}</Text>
         <Text style={styles.merchant}>to {merchant?.name ?? 'merchant'}</Text>
@@ -97,8 +99,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
     alignItems: 'center',
-    paddingTop: Spacing.xxxl,
     paddingHorizontal: Spacing.xl,
+    // paddingTop is applied inline with the safe-area inset added.
   },
   summary: {
     alignItems: 'center',

@@ -12,18 +12,11 @@ import { SpendBarChart, type DailySpend } from '@/components/charts/SpendBarChar
 import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
 import { CategoryGrid, type CategoryBreakdown } from '@/components/charts/CategoryGrid';
 import { fetchTransactions } from '@/services/payments';
+import { CATEGORY_ICON } from '@/mock/data';
 import type { Transaction } from '@/types/payment';
 
 const FILTERS = ['All', 'Transport', 'Food', 'Shopping', 'Crypto', 'Splits'] as const;
 type Filter = (typeof FILTERS)[number];
-
-const CATEGORY_ICON: Record<string, string> = {
-  transport: '🚗',
-  food: '☕',
-  shopping: '🛒',
-  crypto: '₿',
-  other: '💳',
-};
 
 const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -94,7 +87,7 @@ export default function HistoryScreen() {
     return Object.entries(totals).map(([key, amountNGN]) => ({
       key,
       label: key.charAt(0).toUpperCase() + key.slice(1),
-      icon: CATEGORY_ICON[key] ?? '💳',
+      icon: CATEGORY_ICON[key] ?? CATEGORY_ICON.other,
       amountNGN,
     }));
   }, [transactions]);
@@ -137,7 +130,7 @@ export default function HistoryScreen() {
         renderItem={({ item }) => (
           <TransactionRow transaction={item} onPress={() => router.push(`/(consumer)/history/${item.id}`)} />
         )}
-        ListEmptyComponent={<EmptyState icon="🧾" title="No transactions" message="Nothing matches this filter yet." />}
+        ListEmptyComponent={<EmptyState icon="receipt-outline" title="No transactions" message="Nothing matches this filter yet." />}
       />
     </View>
   );

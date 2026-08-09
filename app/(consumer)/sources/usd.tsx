@@ -5,20 +5,21 @@ import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Toggle } from '@/components/ui/Toggle';
 import { Button } from '@/components/ui/Button';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useSourcesStore } from '@/store/sources';
 import { showToast } from '@/components/ui/Toast';
 
 interface USDProvider {
   key: string;
   name: string;
-  icon: string;
+  icon: IconName;
   subtitle: string;
 }
 
 const USD_PROVIDERS: USDProvider[] = [
-  { key: 'grey', name: 'Grey Finance', icon: '🌍', subtitle: 'Virtual USD account, instant setup' },
-  { key: 'geegpay', name: 'Geegpay', icon: '💳', subtitle: 'USD wallet for freelancers' },
-  { key: 'chipper', name: 'Chipper Cash', icon: '🐦', subtitle: 'Cross-border USD balance' },
+  { key: 'grey', name: 'Grey Finance', icon: 'globe-outline', subtitle: 'Virtual USD account, instant setup' },
+  { key: 'geegpay', name: 'Geegpay', icon: 'card-outline', subtitle: 'USD wallet for freelancers' },
+  { key: 'chipper', name: 'Chipper Cash', icon: 'airplane-outline', subtitle: 'Cross-border USD balance' },
 ];
 
 export default function AddUSDScreen() {
@@ -60,12 +61,14 @@ export default function AddUSDScreen() {
             style={[styles.card, selected === provider.key && styles.cardActive]}
             activeOpacity={0.85}
           >
-            <Text style={styles.cardIcon}>{provider.icon}</Text>
+            <View style={styles.cardIconWrap}>
+              <Icon name={provider.icon} size={18} color={Colors.onSurfaceVariant} />
+            </View>
             <View style={styles.cardInfo}>
               <Text style={styles.cardName}>{provider.name}</Text>
               <Text style={styles.cardSubtitle}>{provider.subtitle}</Text>
             </View>
-            {selected === provider.key ? <Text style={styles.check}>✓</Text> : null}
+            {selected === provider.key ? <Icon name="checkmark-circle" size={20} color={Colors.primary} /> : null}
           </TouchableOpacity>
         ))}
 
@@ -77,7 +80,7 @@ export default function AddUSDScreen() {
           <Toggle value={autoConvert} onValueChange={setAutoConvert} />
         </View>
 
-        <Button label="Link Account →" onPress={handleLink} disabled={!selected} style={styles.submit} />
+        <Button label="Link Account" trailingArrow onPress={handleLink} disabled={!selected} style={styles.submit} />
       </View>
     </View>
   );
@@ -105,7 +108,14 @@ const styles = StyleSheet.create({
   cardActive: {
     borderColor: Colors.primary,
   },
-  cardIcon: { fontSize: 24 },
+  cardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cardInfo: { flex: 1 },
   cardName: {
     fontFamily: 'Inter_600SemiBold',
@@ -117,10 +127,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.onSurfaceVariant,
     marginTop: 2,
-  },
-  check: {
-    color: Colors.primary,
-    fontSize: 18,
   },
   toggleRow: {
     flexDirection: 'row',

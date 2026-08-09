@@ -1,18 +1,21 @@
 import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { QuickActions } from '@/components/shared/QuickActions';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/Badge';
+import { Icon } from '@/components/ui/Icon';
 import { useMerchantStore } from '@/store/merchant';
 import { fetchMerchantPayments, fetchSettlements } from '@/services/merchant';
 import { REVENUE_LAST_7_DAYS } from '@/mock/merchant';
 
 export default function MerchantHomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const profile = useMerchantStore((s) => s.profile);
 
   const { data: payments } = useQuery({ queryKey: ['merchant-payments'], queryFn: fetchMerchantPayments });
@@ -24,10 +27,10 @@ export default function MerchantHomeScreen() {
 
   const quickActions = useMemo(
     () => [
-      { key: 'qr', label: 'Show QR', icon: '🔳', iconBg: Colors.primary + '20', onPress: () => router.push('/(merchant)/qr') },
-      { key: 'payments', label: 'Payments', icon: '💳', iconBg: Colors.secondary + '20', onPress: () => router.push('/(merchant)/payments') },
-      { key: 'analytics', label: 'Analytics', icon: '📊', iconBg: Colors.usd + '20', onPress: () => router.push('/(merchant)/analytics') },
-      { key: 'settlement', label: 'Settlement', icon: '🏦', iconBg: Colors.warning + '20', onPress: () => router.push('/(merchant)/settlement') },
+      { key: 'qr', label: 'Show QR', icon: 'qr-code-outline' as const, iconColor: Colors.primary, iconBg: Colors.primary + '20', onPress: () => router.push('/(merchant)/qr') },
+      { key: 'payments', label: 'Payments', icon: 'card-outline' as const, iconColor: Colors.secondary, iconBg: Colors.secondary + '20', onPress: () => router.push('/(merchant)/payments') },
+      { key: 'analytics', label: 'Analytics', icon: 'stats-chart-outline' as const, iconColor: Colors.usd, iconBg: Colors.usd + '20', onPress: () => router.push('/(merchant)/analytics') },
+      { key: 'settlement', label: 'Settlement', icon: 'business-outline' as const, iconColor: Colors.warning, iconBg: Colors.warning + '20', onPress: () => router.push('/(merchant)/settlement') },
     ],
     [router]
   );
@@ -36,14 +39,14 @@ export default function MerchantHomeScreen() {
 
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.lg }]}>
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.businessName}>{profile?.businessName ?? 'Your Business'}</Text>
             {profile?.isVerified ? <Badge kind="VERIFIED" /> : null}
           </View>
           <TouchableOpacity onPress={() => router.push('/(merchant)/settings')} style={styles.settingsButton}>
-            <Text style={styles.settingsIcon}>⚙️</Text>
+            <Icon name="settings-outline" size={18} color={Colors.onSurface} />
           </TouchableOpacity>
         </View>
 
@@ -69,7 +72,7 @@ export default function MerchantHomeScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionTitle title="Recent Payments" rightLabel="See all →" onPressRight={() => router.push('/(merchant)/payments')} padded />
+        <SectionTitle title="Recent Payments" rightLabel="See all" onPressRight={() => router.push('/(merchant)/payments')} padded />
         {recentPayments.length > 0 ? (
           recentPayments.map((payment) => (
             <View key={payment.id} style={styles.paymentRow}>
@@ -83,7 +86,7 @@ export default function MerchantHomeScreen() {
             </View>
           ))
         ) : (
-          <EmptyState icon="💳" title="No payments yet" message="Share your QR code to start accepting payments." />
+          <EmptyState icon="card-outline" title="No payments yet" message="Share your QR code to start accepting payments." />
         )}
       </View>
     </ScrollView>
@@ -123,7 +126,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settingsIcon: { fontSize: 16 },
   revenueLabel: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.labelSm.fontSize,

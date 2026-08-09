@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useBiometrics } from '@/hooks/useBiometrics';
 import { useSecurityStore } from '@/store/security';
 import { showToast } from '@/components/ui/Toast';
@@ -15,7 +16,7 @@ export default function BiometricsScreen() {
 
   const available = isSupported && isEnrolled;
   const label = type === 'faceId' ? 'Face ID' : type === 'fingerprint' ? 'Fingerprint' : 'Biometrics';
-  const glyph = type === 'faceId' ? '🙂' : '👆';
+  const glyph: IconName = type === 'faceId' ? 'scan-outline' : 'finger-print';
 
   // Nothing to enable on this device — don't block onboarding on it.
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function BiometricsScreen() {
     <View style={styles.wrap}>
       <View style={styles.body}>
         <View style={styles.ring}>
-          <Text style={styles.glyph}>{glyph}</Text>
+          <Icon name={glyph} size={40} color={Colors.primary} />
         </View>
 
         <Text style={styles.title}>Enable {label}</Text>
@@ -82,7 +83,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.xl,
   },
-  glyph: { fontSize: 40 },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: Typography.headlineMd.fontSize,

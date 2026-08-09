@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { View, Text, Share, StyleSheet } from 'react-native';
+import { View, Text, Share, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -11,6 +12,7 @@ import Animated, {
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { usePaymentStore } from '@/store/payment';
 
 function formatTime(date: Date) {
@@ -19,6 +21,7 @@ function formatTime(date: Date) {
 
 export default function SuccessScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const transaction = usePaymentStore((s) => s.lastTransaction);
   const reset = usePaymentStore((s) => s.reset);
 
@@ -51,9 +54,15 @@ export default function SuccessScreen() {
   }
 
   return (
-    <View style={styles.wrap}>
+    <ScrollView
+      style={styles.wrap}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + Spacing.xxxl, paddingBottom: insets.bottom + Spacing.xxl },
+      ]}
+    >
       <Animated.View style={[styles.ring, ringStyle]}>
-        <Text style={styles.check}>✓</Text>
+        <Icon name="checkmark" size={36} color={Colors.primary} />
       </Animated.View>
 
       <Text style={styles.title}>Payment Sent!</Text>
@@ -61,7 +70,8 @@ export default function SuccessScreen() {
       <Text style={styles.amount}>₦{transaction.amount.toLocaleString()}</Text>
 
       <Animated.View style={[styles.pointsBadge, badgeStyle]}>
-        <Text style={styles.pointsText}>⭐ +{transaction.pointsEarned} pts earned</Text>
+        <Icon name="star" size={13} color={Colors.primary} />
+        <Text style={styles.pointsText}>+{transaction.pointsEarned} pts earned</Text>
       </Animated.View>
 
       <Card variant="containerHigh" style={styles.receipt}>
@@ -77,7 +87,7 @@ export default function SuccessScreen() {
         <Button label="Back to Home" onPress={handleBackHome} />
         <Button label="Share Receipt" variant="secondary" onPress={handleShare} />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -94,8 +104,9 @@ const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  content: {
     alignItems: 'center',
-    paddingTop: Spacing.xxxl,
     paddingHorizontal: Spacing.xl,
   },
   ring: {
@@ -108,10 +119,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
-  },
-  check: {
-    fontSize: 36,
-    color: Colors.primary,
   },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -131,6 +138,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   pointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     backgroundColor: Colors.primary + '20',
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.lg,
@@ -169,6 +179,5 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: Spacing.xxl,
     gap: Spacing.md,
-    paddingBottom: Spacing.xxl,
   },
 });

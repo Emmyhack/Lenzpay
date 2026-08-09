@@ -1,3 +1,5 @@
+import type { IconName } from '@/components/ui/Icon';
+
 export type CurrencyCode = 'NGN' | 'USD' | 'BTC' | 'USDT' | 'ETH';
 export type SourceType = 'bank' | 'wallet' | 'usd' | 'crypto';
 export type SourceStatus =
@@ -19,7 +21,15 @@ export interface PaymentSource {
   rawBalance: number; // In the native currency
   rawCurrency: CurrencyCode;
   isDefault: boolean;
-  flag: string; // Emoji flag or symbol
+  // NIBSS bank code (matches mock/banks.ts) — lets bank/wallet sources render
+  // their real institution logo via BankLogo instead of a generic glyph.
+  bankCode?: string;
+  // Real-world currencies show their national flag; crypto assets render
+  // their exact coin logo (see CryptoLogo); anything else falls back to a
+  // tinted vector icon.
+  flag?: string;
+  icon?: IconName;
+  iconColor?: string;
   lastSynced: Date;
 }
 
@@ -59,13 +69,11 @@ export interface Merchant {
   isVerified: boolean;
   location: string;
   acceptedCurrencies: CurrencyCode[];
-  icon: string; // emoji
 }
 
 export interface Transaction {
   id: string;
   merchantName: string;
-  merchantIcon: string;
   category: string;
   amount: number; // NGN
   direction: 'debit' | 'credit';

@@ -11,6 +11,7 @@ import Animated, {
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { useSecurityStore } from '@/store/security';
 import { showToast } from '@/components/ui/Toast';
 
@@ -49,7 +50,7 @@ export default function FraudAlertScreen() {
 
       <View style={styles.body}>
         <Animated.View style={[styles.ring, ringStyle]}>
-          <Text style={styles.icon}>🚨</Text>
+          <Icon name="warning" size={36} color={Colors.error} />
         </Animated.View>
 
         <Text style={styles.title}>Unusual activity flagged</Text>
@@ -91,7 +92,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.xl,
   },
-  icon: { fontSize: 36 },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: Typography.headlineMd.fontSize,

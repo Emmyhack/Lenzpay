@@ -6,6 +6,7 @@ import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { ToggleRow } from '@/components/shared/ToggleRow';
+import { Icon } from '@/components/ui/Icon';
 import { useSecurityStore } from '@/store/security';
 
 function PulseDot() {
@@ -64,7 +65,7 @@ export default function SecurityHubScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionTitle title="Limits" rightLabel="Edit →" onPressRight={() => router.push('/(consumer)/security/limits')} />
+          <SectionTitle title="Limits" rightLabel="Edit" onPressRight={() => router.push('/(consumer)/security/limits')} />
           <View style={styles.card}>
             <LimitRow label="Daily limit" value={`₦${security.dailyLimitNGN.toLocaleString()}`} />
             <LimitRow label="Per-transaction limit" value={`₦${security.perTxnLimitNGN.toLocaleString()}`} />
@@ -75,11 +76,11 @@ export default function SecurityHubScreen() {
 
         <TouchableOpacity onPress={() => router.push('/(consumer)/security/pin-change')} style={styles.linkRow}>
           <Text style={styles.linkText}>Change PIN</Text>
-          <Text style={styles.chevron}>›</Text>
+          <Icon name="chevron-forward" size={18} color={Colors.onSurfaceMuted} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push('/(consumer)/security/devices')} style={styles.linkRow}>
           <Text style={styles.linkText}>Trusted Devices</Text>
-          <Text style={styles.chevron}>›</Text>
+          <Icon name="chevron-forward" size={18} color={Colors.onSurfaceMuted} />
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -175,9 +176,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodyMd.fontSize,
     color: Colors.onSurface,
-  },
-  chevron: {
-    color: Colors.onSurfaceMuted,
-    fontSize: 18,
   },
 });

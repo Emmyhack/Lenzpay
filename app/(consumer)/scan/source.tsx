@@ -5,6 +5,7 @@ import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { SourceList } from '@/components/payment/SourceList';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { usePaymentLogic } from '@/hooks/usePaymentLogic';
 import { useSourcesStore } from '@/store/sources';
 import { usePaymentStore } from '@/store/payment';
@@ -55,27 +56,31 @@ export default function SourceScreen() {
           onPress={() => setUiMode('auto')}
           style={[styles.toggleTab, uiMode === 'auto' && styles.toggleTabActive]}
         >
-          <Text style={[styles.toggleText, uiMode === 'auto' && styles.toggleTextActive]}>⚡ Auto</Text>
+          <Icon name="flash" size={14} color={uiMode === 'auto' ? Colors.onPrimary : Colors.onSurfaceVariant} />
+          <Text style={[styles.toggleText, uiMode === 'auto' && styles.toggleTextActive]}>Auto</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setUiMode('manual')}
           style={[styles.toggleTab, uiMode === 'manual' && styles.toggleTabActive]}
         >
-          <Text style={[styles.toggleText, uiMode === 'manual' && styles.toggleTextActive]}>👆 Manual</Text>
+          <Icon name="hand-left" size={14} color={uiMode === 'manual' ? Colors.onPrimary : Colors.onSurfaceVariant} />
+          <Text style={[styles.toggleText, uiMode === 'manual' && styles.toggleTextActive]}>Manual</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.list}>
         {showSplitNotice ? (
           <View style={styles.splitNotice}>
+            <Icon name="shuffle" size={16} color={Colors.warning} />
             <Text style={styles.splitNoticeText}>
-              🔀 No single account covers this — we'll split it across your sources.
+              No single account covers this — we'll split it across your sources.
             </Text>
           </View>
         ) : null}
 
         {!result.isCoverable && result.deficit > 0 ? (
           <View style={styles.deficitNotice}>
+            <Icon name="alert-circle" size={16} color={Colors.errorDim} />
             <Text style={styles.deficitText}>
               You're short by ₦{result.deficit.toLocaleString()} across all sources.
             </Text>
@@ -94,11 +99,17 @@ export default function SourceScreen() {
 
       <View style={styles.footer}>
         <Button
-          label={amountNGN > 0 ? `Pay ₦${amountNGN.toLocaleString()} →` : 'Enter an amount'}
+          label={amountNGN > 0 ? `Pay ₦${amountNGN.toLocaleString()}` : 'Enter an amount'}
+          trailingArrow={amountNGN > 0}
           onPress={handlePay}
           disabled={!canPay}
         />
-        {canPay ? <Text style={styles.pointsPreview}>⭐ You'll earn ~{pointsPreview} pts</Text> : null}
+        {canPay ? (
+          <View style={styles.pointsPreviewRow}>
+            <Icon name="star" size={12} color={Colors.primary} />
+            <Text style={styles.pointsPreview}>You'll earn ~{pointsPreview} pts</Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -119,9 +130,12 @@ const styles = StyleSheet.create({
   },
   toggleTab: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.pill,
-    alignItems: 'center',
   },
   toggleTabActive: {
     backgroundColor: Colors.primary,
@@ -139,23 +153,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   splitNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
     backgroundColor: Colors.warning + '18',
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
   },
   splitNoticeText: {
+    flex: 1,
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.warning,
   },
   deficitNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
     backgroundColor: Colors.errorContainer,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
   },
   deficitText: {
+    flex: 1,
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.errorDim,
@@ -165,11 +187,16 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
     paddingTop: Spacing.md,
   },
+  pointsPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
   pointsPreview: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.primary,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
   },
 });

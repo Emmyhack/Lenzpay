@@ -31,7 +31,7 @@ export default function SplitScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Button label="Confirm Split →" onPress={handleConfirm} disabled={allocations.length === 0} />
+        <Button label="Confirm Split" trailingArrow onPress={handleConfirm} disabled={allocations.length === 0} />
       </View>
     </View>
   );

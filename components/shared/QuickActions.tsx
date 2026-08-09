@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 interface QuickAction {
   key: string;
   label: string;
-  icon: string;
+  icon: IconName;
+  iconColor: string;
   iconBg: string;
   onPress: () => void;
 }
@@ -27,7 +29,7 @@ export function QuickActions({ actions }: QuickActionsProps) {
           accessibilityLabel={action.label}
         >
           <View style={[styles.iconWrap, { backgroundColor: action.iconBg }]}>
-            <Text style={styles.icon}>{action.icon}</Text>
+            <Icon name={action.icon} size={20} color={action.iconColor} />
           </View>
           <Text style={styles.label}>{action.label}</Text>
         </TouchableOpacity>
@@ -58,7 +60,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  icon: { fontSize: 18 },
   label: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: Typography.bodySm.fontSize,

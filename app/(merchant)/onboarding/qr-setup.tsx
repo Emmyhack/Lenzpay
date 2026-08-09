@@ -27,7 +27,7 @@ export default function QRSetupScreen() {
           Print this or display it at checkout — customers scan it to pay you directly from any connected source.
         </Text>
 
-        <Button label="Finish Setup →" onPress={handleFinish} style={styles.button} />
+        <Button label="Finish Setup" trailingArrow onPress={handleFinish} style={styles.button} />
       </View>
     </View>
   );

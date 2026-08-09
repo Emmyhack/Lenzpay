@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon } from '@/components/ui/Icon';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 
 interface ScreenHeaderProps {
@@ -13,9 +15,10 @@ interface ScreenHeaderProps {
 
 export function ScreenHeader({ title, subtitle, showBack = true, onBack, right }: ScreenHeaderProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { paddingTop: insets.top + Spacing.md }]}>
       <View style={styles.left}>
         {showBack && (
           <TouchableOpacity
@@ -25,7 +28,7 @@ export function ScreenHeader({ title, subtitle, showBack = true, onBack, right }
             accessibilityLabel="Go back"
             hitSlop={8}
           >
-            <Text style={styles.backGlyph}>←</Text>
+            <Icon name="chevron-back" size={20} color={Colors.onSurface} />
           </TouchableOpacity>
         )}
         <View>
@@ -58,10 +61,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backGlyph: {
-    color: Colors.onSurface,
-    fontSize: 18,
   },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',

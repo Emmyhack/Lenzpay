@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { BalanceHero } from '@/components/wallet/BalanceHero';
 import { RewardsStrip } from '@/components/wallet/RewardsStrip';
@@ -9,6 +10,7 @@ import { QuickActions } from '@/components/shared/QuickActions';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { TransactionRow } from '@/components/shared/TransactionRow';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Icon } from '@/components/ui/Icon';
 import { useSourcesStore } from '@/store/sources';
 import { useAuthStore } from '@/store/auth';
 import { useBalance } from '@/hooks/useBalance';
@@ -18,7 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchTransactions } from '@/services/payments';
 
 function getInitials(fullName?: string) {
-  if (!fullName) return '🙂';
+  if (!fullName) return undefined;
   const parts = fullName.trim().split(/\s+/);
   return parts
     .slice(0, 2)
@@ -28,6 +30,7 @@ function getInitials(fullName?: string) {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const sources = useSourcesStore((s) => s.sources);
   const refreshBalances = useSourcesStore((s) => s.refreshBalances);
@@ -50,10 +53,10 @@ export default function HomeScreen() {
 
   const quickActions = useMemo(
     () => [
-      { key: 'scan', label: 'Scan', icon: '📷', iconBg: Colors.primary + '20', onPress: () => router.push('/(consumer)/scan') },
-      { key: 'history', label: 'History', icon: '🧾', iconBg: Colors.secondary + '20', onPress: () => router.push('/(consumer)/history') },
-      { key: 'security', label: 'Security', icon: '🛡️', iconBg: Colors.error + '20', onPress: () => router.push('/(consumer)/security') },
-      { key: 'rewards', label: 'Rewards', icon: '⭐', iconBg: Colors.warning + '20', onPress: () => router.push('/(consumer)/rewards') },
+      { key: 'scan', label: 'Scan', icon: 'scan-outline' as const, iconColor: Colors.primary, iconBg: Colors.primary + '20', onPress: () => router.push('/(consumer)/scan') },
+      { key: 'history', label: 'History', icon: 'receipt-outline' as const, iconColor: Colors.secondary, iconBg: Colors.secondary + '20', onPress: () => router.push('/(consumer)/history') },
+      { key: 'security', label: 'Security', icon: 'shield-checkmark-outline' as const, iconColor: Colors.error, iconBg: Colors.error + '20', onPress: () => router.push('/(consumer)/security') },
+      { key: 'rewards', label: 'Rewards', icon: 'star-outline' as const, iconColor: Colors.warning, iconBg: Colors.warning + '20', onPress: () => router.push('/(consumer)/rewards') },
     ],
     [router]
   );
@@ -67,7 +70,7 @@ export default function HomeScreen() {
       refreshControl={<RefreshControl refreshing={isRefreshingSources} onRefresh={handleRefresh} tintColor={Colors.primary} />}
     >
       <View style={styles.header}>
-        <View style={styles.headerRow}>
+        <View style={[styles.headerRow, { paddingTop: insets.top + Spacing.lg }]}>
           <View style={styles.wordmarkRow}>
             <Text style={styles.lenz}>Lenz</Text>
             <Text style={styles.pay}>Pay</Text>
@@ -78,7 +81,11 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Profile"
           >
-            <Text style={styles.avatarText}>{getInitials(user?.fullName)}</Text>
+            {getInitials(user?.fullName) ? (
+              <Text style={styles.avatarText}>{getInitials(user?.fullName)}</Text>
+            ) : (
+              <Icon name="person" size={18} color={Colors.onSurface} />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -96,7 +103,7 @@ export default function HomeScreen() {
           <SourceScrollRow sources={sources} onPressSource={(s) => router.push(`/(consumer)/sources/${s.id}`)} />
         ) : (
           <EmptyState
-            icon="🏦"
+            icon="business-outline"
             title="No sources yet"
             message="Add a bank, wallet, USD account, or crypto wallet to start paying."
             ctaLabel="Add a source"
@@ -106,13 +113,13 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionTitle title="Recent" rightLabel="See all →" onPressRight={() => router.push('/(consumer)/history')} padded />
+        <SectionTitle title="Recent" rightLabel="See all" onPressRight={() => router.push('/(consumer)/history')} padded />
         {recentTransactions.length > 0 ? (
           recentTransactions.map((txn) => (
             <TransactionRow key={txn.id} transaction={txn} onPress={() => router.push(`/(consumer)/history/${txn.id}`)} />
           ))
         ) : (
-          <EmptyState icon="🧾" title="No transactions yet" message="Your payments will show up here." />
+          <EmptyState icon="receipt-outline" title="No transactions yet" message="Your payments will show up here." />
         )}
       </View>
     </ScrollView>

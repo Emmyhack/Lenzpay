@@ -2,11 +2,12 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 export interface CategoryBreakdown {
   key: string;
   label: string;
-  icon: string;
+  icon: IconName;
   amountNGN: number;
 }
 
@@ -25,7 +26,9 @@ function CategoryCard({ category, ratio }: { category: CategoryBreakdown; ratio:
 
   return (
     <View style={styles.card}>
-      <Text style={styles.icon}>{category.icon}</Text>
+      <View style={styles.iconWrap}>
+        <Icon name={category.icon} size={16} color={Colors.secondary} />
+      </View>
       <Text style={styles.label}>{category.label}</Text>
       <Text style={styles.amount}>₦{category.amountNGN.toLocaleString()}</Text>
       <View style={styles.track}>
@@ -59,7 +62,15 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
   },
-  icon: { fontSize: 20, marginBottom: Spacing.xs },
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.secondary + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
   label: {
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,

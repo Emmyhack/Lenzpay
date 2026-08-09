@@ -4,6 +4,8 @@ import BottomSheet, { BottomSheetBackdrop, BottomSheetView, type BottomSheetBack
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { Badge, type BadgeKind } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
+import { CATEGORY_ICON } from '@/mock/data';
 import type { Merchant } from '@/types/payment';
 
 interface MerchantSheetProps {
@@ -44,7 +46,7 @@ export function MerchantSheet({ merchant, onContinue, onScanAgain }: MerchantShe
         <BottomSheetView style={styles.content}>
           <View style={styles.merchantHeader}>
             <View style={styles.iconCircle}>
-              <Text style={styles.iconGlyph}>{merchant.icon}</Text>
+              <Icon name={CATEGORY_ICON[merchant.category] ?? CATEGORY_ICON.other} size={28} color={Colors.onSurface} />
             </View>
             <Text style={styles.merchantName}>{merchant.name}</Text>
             {merchant.isVerified ? <Badge kind="VERIFIED" style={styles.centeredBadge} /> : null}
@@ -58,7 +60,7 @@ export function MerchantSheet({ merchant, onContinue, onScanAgain }: MerchantShe
             ))}
           </View>
 
-          <Button label="Continue to Pay →" onPress={onContinue} style={styles.continueButton} />
+          <Button label="Continue to Pay" trailingArrow onPress={onContinue} style={styles.continueButton} />
           <Button label="Scan Again" variant="secondary" onPress={onScanAgain} />
         </BottomSheetView>
       </BottomSheet>
@@ -96,7 +98,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
-  iconGlyph: { fontSize: 28 },
   merchantName: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: Typography.headlineSm.fontSize,

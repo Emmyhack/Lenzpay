@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Badge } from '@/components/ui/Badge';
+import { Icon } from '@/components/ui/Icon';
 import { MOCK_DEVICES, type TrustedDevice } from '@/mock/devices';
 import { showToast } from '@/components/ui/Toast';
 
@@ -33,7 +34,9 @@ export default function DevicesScreen() {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            <Text style={styles.icon}>{item.icon}</Text>
+            <View style={styles.iconWrap}>
+              <Icon name={item.icon} size={20} color={Colors.onSurface} />
+            </View>
             <View style={styles.info}>
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{item.name}</Text>
@@ -73,7 +76,14 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     marginBottom: Spacing.sm,
   },
-  icon: { fontSize: 22 },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   info: { flex: 1 },
   nameRow: {
     flexDirection: 'row',

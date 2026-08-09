@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { SpinningRing } from '@/components/shared/SpinningRing';
+import { Icon } from '@/components/ui/Icon';
 import { fetchKYCStatus } from '@/services/kyc';
 import { Config } from '@/constants/config';
 import { useAuthStore } from '@/store/auth';
@@ -37,9 +38,10 @@ export default function KYCPendingScreen() {
       </View>
       <Text style={styles.title}>Verifying your identity…</Text>
       <Text style={styles.subtitle}>Usually takes under 30 seconds</Text>
-      <Text style={styles.link} onPress={handleGoHome}>
-        Go to home →
-      </Text>
+      <TouchableOpacity style={styles.link} onPress={handleGoHome} hitSlop={8}>
+        <Text style={styles.linkText}>Go to home</Text>
+        <Icon name="arrow-forward" size={14} color={Colors.primary} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -67,10 +69,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.xxl,
+    padding: Spacing.sm,
+  },
+  linkText: {
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.primary,
-    marginTop: Spacing.xxl,
-    padding: Spacing.sm,
   },
 });

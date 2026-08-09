@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Icon } from '@/components/ui/Icon';
 import { SourceCard } from './SourceCard';
 import type { SplitAllocation } from '@/types/payment';
 
@@ -32,9 +33,12 @@ export function SplitPreview({ amountNGN, allocations }: SplitPreviewProps) {
 
       <View style={styles.totalRow}>
         <Text style={styles.totalLabel}>Total</Text>
-        <Text style={[styles.totalValue, total === amountNGN && styles.totalMatch]}>
-          ₦{total.toLocaleString()} {total === amountNGN ? '✓' : ''}
-        </Text>
+        <View style={styles.totalValueRow}>
+          <Text style={[styles.totalValue, total === amountNGN && styles.totalMatch]}>
+            ₦{total.toLocaleString()}
+          </Text>
+          {total === amountNGN ? <Icon name="checkmark-circle" size={16} color={Colors.success} /> : null}
+        </View>
       </View>
     </View>
   );
@@ -68,6 +72,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodyMd.fontSize,
     color: Colors.onSurfaceVariant,
+  },
+  totalValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   totalValue: {
     fontFamily: 'SpaceGrotesk_500Medium',

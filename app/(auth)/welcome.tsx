@@ -10,6 +10,7 @@ import {
   type NativeScrollEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -21,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 interface Slide {
   key: string;
@@ -46,7 +48,7 @@ const SLIDES: Slide[] = [
   },
 ];
 
-function FloatInIcon({ icon, delay }: { icon: string; delay: number }) {
+function FloatInIcon({ icon, delay }: { icon: IconName; delay: number }) {
   const translateY = useSharedValue(24);
   const opacity = useSharedValue(0);
   translateY.value = withDelay(delay, withSpring(0, { damping: 12 }));
@@ -58,7 +60,7 @@ function FloatInIcon({ icon, delay }: { icon: string; delay: number }) {
 
   return (
     <Animated.View style={[artStyles.iconBubble, style]}>
-      <Text style={artStyles.iconGlyph}>{icon}</Text>
+      <Icon name={icon} size={24} color={Colors.onSurface} />
     </Animated.View>
   );
 }
@@ -67,13 +69,13 @@ function SourceIconsArt() {
   return (
     <View style={artStyles.row}>
       <View style={artStyles.iconsRow}>
-        <FloatInIcon icon="🏦" delay={0} />
-        <FloatInIcon icon="💵" delay={150} />
-        <FloatInIcon icon="₿" delay={300} />
+        <FloatInIcon icon="business-outline" delay={0} />
+        <FloatInIcon icon="cash" delay={150} />
+        <FloatInIcon icon="logo-bitcoin" delay={300} />
       </View>
-      <Text style={artStyles.arrow}>↓</Text>
+      <Icon name="arrow-down" size={20} color={Colors.onSurfaceMuted} style={artStyles.arrow} />
       <View style={artStyles.targetBubble}>
-        <Text style={artStyles.iconGlyph}>✓</Text>
+        <Icon name="checkmark" size={24} color={Colors.primary} />
       </View>
     </View>
   );
@@ -111,8 +113,9 @@ function PointsCounterArt() {
 
   return (
     <View style={artStyles.pointsWrap}>
-      <Animated.View style={[artStyles.tierBadge, badgeStyle]}>
-        <Text style={artStyles.tierText}>⭐ Gold · 3,240 pts</Text>
+      <Animated.View style={[artStyles.tierBadge, badgeStyle, artStyles.tierBadgeRow]}>
+        <Icon name="star" size={14} color={Colors.warning} />
+        <Text style={artStyles.tierText}>Gold · 3,240 pts</Text>
       </Animated.View>
       <View style={artStyles.barTrack}>
         <Animated.View style={[artStyles.barFill, barStyle, { backgroundColor: Colors.primary }]} />
@@ -123,6 +126,7 @@ function PointsCounterArt() {
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<FlatList<Slide>>(null);
@@ -148,7 +152,7 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.wrap}>
       <TouchableOpacity
-        style={styles.skip}
+        style={[styles.skip, { top: insets.top + Spacing.md }]}
         onPress={() => router.replace('/(auth)/signup')}
         hitSlop={8}
         accessibilityRole="button"
@@ -166,7 +170,7 @@ export default function WelcomeScreen() {
         keyExtractor={(item) => item.key}
         onMomentumScrollEnd={handleScroll}
         renderItem={({ item, index }) => (
-          <View style={[styles.slide, { width }]}>
+          <View style={[styles.slide, { width, paddingTop: insets.top + Spacing.xxxl }]}>
             <View style={styles.art}>
               {index === 0 && <SourceIconsArt />}
               {index === 1 && <SplitBarsArt />}
@@ -184,7 +188,7 @@ export default function WelcomeScreen() {
             <View key={slide.key} style={[styles.pageDot, i === activeIndex && styles.pageDotActive]} />
           ))}
         </View>
-        <Button label={isLast ? 'Get Started' : 'Next →'} onPress={goNext} />
+        <Button label={isLast ? 'Get Started' : 'Next'} trailingArrow onPress={goNext} />
       </View>
     </View>
   );
@@ -213,7 +217,7 @@ const styles = StyleSheet.create({
   slide: {
     alignItems: 'center',
     paddingHorizontal: Spacing.xxl,
-    paddingTop: Spacing.xxxl,
+    // paddingTop is applied inline per-slide with the safe-area inset added.
   },
   art: {
     height: 180,
@@ -274,12 +278,7 @@ const artStyles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: Spacing.xs,
   },
-  iconGlyph: {
-    fontSize: 24,
-  },
   arrow: {
-    fontSize: 20,
-    color: Colors.onSurfaceMuted,
     marginVertical: Spacing.sm,
   },
   targetBubble: {
@@ -306,6 +305,11 @@ const artStyles = StyleSheet.create({
     borderRadius: Radius.pill,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
+  },
+  tierBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   tierText: {
     fontFamily: 'Inter_600SemiBold',

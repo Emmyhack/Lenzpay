@@ -1,20 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: IconName;
   title: string;
   message?: string;
   ctaLabel?: string;
   onPressCta?: () => void;
 }
 
-export function EmptyState({ icon = '📭', title, message, ctaLabel, onPressCta }: EmptyStateProps) {
+export function EmptyState({ icon = 'file-tray-outline', title, message, ctaLabel, onPressCta }: EmptyStateProps) {
   return (
     <View style={styles.wrap}>
-      <Text style={styles.icon}>{icon}</Text>
+      <View style={styles.iconWrap}>
+        <Icon name={icon} size={28} color={Colors.onSurfaceMuted} />
+      </View>
       <Text style={styles.title}>{title}</Text>
       {message ? <Text style={styles.message}>{message}</Text> : null}
       {ctaLabel && onPressCta ? (
@@ -31,7 +34,15 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xxxl,
     paddingHorizontal: Spacing.xl,
   },
-  icon: { fontSize: 40, marginBottom: Spacing.md },
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
   title: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: Typography.titleMd.fontSize,

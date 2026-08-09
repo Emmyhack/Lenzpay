@@ -1,13 +1,14 @@
 import { Tabs, useSegments } from 'expo-router';
-import { Text, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 
-const TAB_ICON: Record<string, string> = {
-  index: '🏠',
-  scan: '📷',
-  history: '🧾',
-  rewards: '⭐',
-  security: '🛡️',
+const TAB_ICON: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
+  index: { active: 'home', inactive: 'home-outline' },
+  scan: { active: 'scan', inactive: 'scan-outline' },
+  history: { active: 'receipt', inactive: 'receipt-outline' },
+  rewards: { active: 'star', inactive: 'star-outline' },
+  security: { active: 'shield-checkmark', inactive: 'shield-checkmark-outline' },
 };
 
 // Sub-routes of the scan flow that take over the whole screen (merchant
@@ -33,7 +34,10 @@ export default function ConsumerLayout() {
               borderTopWidth: StyleSheet.hairlineWidth,
             },
         tabBarLabelStyle: { fontFamily: 'Inter_500Medium', fontSize: 11 },
-        tabBarIcon: ({ color }) => <Text style={{ fontSize: 18, color }}>{TAB_ICON[route.name] ?? '•'}</Text>,
+        tabBarIcon: ({ color, focused }) => {
+          const icons = TAB_ICON[route.name];
+          return <Ionicons name={icons ? (focused ? icons.active : icons.inactive) : 'ellipse-outline'} size={22} color={color} />;
+        },
       })}
     >
       <Tabs.Screen name="index" options={{ title: 'Home' }} />

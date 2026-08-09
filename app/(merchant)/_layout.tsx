@@ -1,13 +1,14 @@
 import { Tabs, useSegments } from 'expo-router';
-import { Text, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 
-const TAB_ICON: Record<string, string> = {
-  index: '🏠',
-  payments: '💳',
-  analytics: '📊',
-  settlement: '🏦',
-  qr: '🔳',
+const TAB_ICON: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
+  index: { active: 'home', inactive: 'home-outline' },
+  payments: { active: 'card', inactive: 'card-outline' },
+  analytics: { active: 'stats-chart', inactive: 'stats-chart-outline' },
+  settlement: { active: 'business', inactive: 'business-outline' },
+  qr: { active: 'qr-code', inactive: 'qr-code-outline' },
 };
 
 export default function MerchantLayout() {
@@ -32,7 +33,10 @@ export default function MerchantLayout() {
               borderTopWidth: StyleSheet.hairlineWidth,
             },
         tabBarLabelStyle: { fontFamily: 'Inter_500Medium', fontSize: 11 },
-        tabBarIcon: ({ color }) => <Text style={{ fontSize: 18, color }}>{TAB_ICON[route.name] ?? '•'}</Text>,
+        tabBarIcon: ({ color, focused }) => {
+          const icons = TAB_ICON[route.name];
+          return <Ionicons name={icons ? (focused ? icons.active : icons.inactive) : 'ellipse-outline'} size={22} color={color} />;
+        },
       })}
     >
       <Tabs.Screen name="index" options={{ title: 'Home' }} />

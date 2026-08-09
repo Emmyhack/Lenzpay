@@ -1,12 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { QRViewport } from '@/components/scan/QRViewport';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { usePaymentStore } from '@/store/payment';
-import { MOCK_MERCHANT } from '@/mock/data';
+import { MOCK_MERCHANT, CATEGORY_ICON } from '@/mock/data';
 import type { Merchant } from '@/types/payment';
 
 const RECENT_MERCHANTS: Merchant[] = [
@@ -18,12 +20,12 @@ const RECENT_MERCHANTS: Merchant[] = [
     isVerified: true,
     location: 'Lagos, NG',
     acceptedCurrencies: ['NGN', 'USD'],
-    icon: '☕',
   },
 ];
 
 export default function ScanScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const setMerchant = usePaymentStore((s) => s.setMerchant);
   const [torchOn, setTorchOn] = useState(false);
@@ -58,7 +60,9 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <View style={[styles.wrap, styles.permissionWrap]}>
-        <Text style={styles.permissionIcon}>📷</Text>
+        <View style={styles.permissionIconWrap}>
+          <Icon name="camera-outline" size={32} color={Colors.onSurface} />
+        </View>
         <Text style={styles.permissionTitle}>Camera access needed</Text>
         <Text style={styles.permissionBody}>Lenz Pay needs your camera to scan merchant QR codes.</Text>
         <Button label="Enable Camera" onPress={requestPermission} style={styles.permissionButton} />
@@ -70,9 +74,9 @@ export default function ScanScreen() {
     <View style={styles.wrap}>
       <QRViewport onScanned={handleBarcodeScanned} torchOn={torchOn} />
 
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { top: insets.top + Spacing.lg }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={styles.iconGlyph}>←</Text>
+          <Icon name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Scan to Pay</Text>
         <TouchableOpacity
@@ -81,7 +85,7 @@ export default function ScanScreen() {
           accessibilityRole="button"
           accessibilityLabel="Toggle flashlight"
         >
-          <Text style={styles.iconGlyph}>{torchOn ? '🔦' : '💡'}</Text>
+          <Icon name={torchOn ? 'flash' : 'flash-off'} size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -91,13 +95,16 @@ export default function ScanScreen() {
           style={styles.manualButton}
           accessibilityRole="button"
         >
-          <Text style={styles.manualButtonText}>✏ Enter manually</Text>
+          <Icon name="create-outline" size={16} color={Colors.onSurfaceVariant} />
+          <Text style={styles.manualButtonText}>Enter manually</Text>
         </TouchableOpacity>
 
         <Text style={styles.recentLabel}>Recent Merchants</Text>
         {RECENT_MERCHANTS.map((merchant) => (
           <View key={merchant.id} style={styles.recentRow}>
-            <Text style={styles.recentIcon}>{merchant.icon}</Text>
+            <View style={styles.recentIconWrap}>
+              <Icon name={CATEGORY_ICON[merchant.category] ?? CATEGORY_ICON.other} size={14} color={Colors.onSurface} />
+            </View>
             <Text style={styles.recentName} numberOfLines={1}>
               {merchant.name}
             </Text>
@@ -121,7 +128,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
   },
-  permissionIcon: { fontSize: 40, marginBottom: Spacing.md },
+  permissionIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
   permissionTitle: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: Typography.titleMd.fontSize,
@@ -156,7 +171,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconGlyph: { fontSize: 18, color: '#fff' },
   topTitle: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
@@ -175,12 +189,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
   manualButton: {
+    flexDirection: 'row',
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: Colors.outlineVariant,
     borderRadius: Radius.md,
     paddingVertical: Spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.xl,
   },
   manualButtonText: {
@@ -202,7 +219,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
-  recentIcon: { fontSize: 18 },
+  recentIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   recentName: {
     flex: 1,
     fontFamily: 'Inter_500Medium',

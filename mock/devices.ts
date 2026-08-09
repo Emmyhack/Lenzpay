@@ -1,10 +1,12 @@
+import type { IconName } from '@/components/ui/Icon';
+
 export interface TrustedDevice {
   id: string;
   name: string;
   location: string;
   lastActive: Date;
   isCurrent: boolean;
-  icon: string;
+  icon: IconName;
 }
 
 export const MOCK_DEVICES: TrustedDevice[] = [
@@ -14,7 +16,7 @@ export const MOCK_DEVICES: TrustedDevice[] = [
     location: 'Lagos, NG',
     lastActive: new Date(),
     isCurrent: true,
-    icon: '📱',
+    icon: 'phone-portrait-outline',
   },
   {
     id: 'dev_002',
@@ -22,7 +24,7 @@ export const MOCK_DEVICES: TrustedDevice[] = [
     location: 'Lagos, NG',
     lastActive: new Date(Date.now() - 2 * 86_400_000),
     isCurrent: false,
-    icon: '💻',
+    icon: 'laptop-outline',
   },
   {
     id: 'dev_003',
@@ -30,6 +32,6 @@ export const MOCK_DEVICES: TrustedDevice[] = [
     location: 'Abuja, NG',
     lastActive: new Date(Date.now() - 3 * 3_600_000),
     isCurrent: false,
-    icon: '❓',
+    icon: 'help-circle-outline',
   },
 ];

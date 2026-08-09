@@ -4,14 +4,15 @@ import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Badge } from '@/components/ui/Badge';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useSourcesStore } from '@/store/sources';
 import type { SourceType } from '@/types/payment';
 
-const ADD_OPTIONS: { key: SourceType; title: string; subtitle: string; icon: string; route: '/(consumer)/sources/bank' | '/(consumer)/sources/wallet' | '/(consumer)/sources/usd' | '/(consumer)/sources/crypto' }[] = [
-  { key: 'bank', title: 'Nigerian Bank', subtitle: 'Access, GTBank, Zenith & more', icon: '🏦', route: '/(consumer)/sources/bank' },
-  { key: 'wallet', title: 'Mobile Wallet', subtitle: 'OPay, Kuda, PalmPay, Moniepoint', icon: '📱', route: '/(consumer)/sources/wallet' },
-  { key: 'usd', title: 'USD Account', subtitle: 'Grey, Geegpay, Chipper Cash', icon: '💵', route: '/(consumer)/sources/usd' },
-  { key: 'crypto', title: 'Crypto Wallet', subtitle: 'BTC, USDT, ETH', icon: '₿', route: '/(consumer)/sources/crypto' },
+const ADD_OPTIONS: { key: SourceType; title: string; subtitle: string; icon: IconName; route: '/(consumer)/sources/bank' | '/(consumer)/sources/wallet' | '/(consumer)/sources/usd' | '/(consumer)/sources/crypto' }[] = [
+  { key: 'bank', title: 'Nigerian Bank', subtitle: 'Access, GTBank, Zenith & more', icon: 'business-outline', route: '/(consumer)/sources/bank' },
+  { key: 'wallet', title: 'Mobile Wallet', subtitle: 'OPay, Kuda, PalmPay, Moniepoint', icon: 'phone-portrait-outline', route: '/(consumer)/sources/wallet' },
+  { key: 'usd', title: 'USD Account', subtitle: 'Grey, Geegpay, Chipper Cash', icon: 'cash-outline', route: '/(consumer)/sources/usd' },
+  { key: 'crypto', title: 'Crypto Wallet', subtitle: 'BTC, USDT, ETH', icon: 'logo-bitcoin', route: '/(consumer)/sources/crypto' },
 ];
 
 export default function SourcesHubScreen() {
@@ -41,7 +42,7 @@ export default function SourcesHubScreen() {
                   <Text style={styles.connectedBalance}>₦{Math.round(source.balance).toLocaleString()}</Text>
                 </View>
                 {source.isDefault ? <Badge kind="DEFAULT" /> : null}
-                <Text style={styles.chevron}>›</Text>
+                <Icon name="chevron-forward" size={18} color={Colors.onSurfaceMuted} />
               </TouchableOpacity>
             ))}
           </View>
@@ -56,12 +57,14 @@ export default function SourcesHubScreen() {
               style={styles.optionCard}
               activeOpacity={0.8}
             >
-              <Text style={styles.optionIcon}>{option.icon}</Text>
+              <View style={styles.optionIconWrap}>
+                <Icon name={option.icon} size={20} color={Colors.primary} />
+              </View>
               <View style={styles.optionInfo}>
                 <Text style={styles.optionTitle}>{option.title}</Text>
                 <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
               </View>
-              <Text style={styles.chevron}>›</Text>
+              <Icon name="chevron-forward" size={18} color={Colors.onSurfaceMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -105,10 +108,6 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
     marginTop: 2,
   },
-  chevron: {
-    color: Colors.onSurfaceMuted,
-    fontSize: 18,
-  },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -119,7 +118,14 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     marginBottom: Spacing.sm,
   },
-  optionIcon: { fontSize: 22 },
+  optionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primary + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   optionInfo: { flex: 1 },
   optionTitle: {
     fontFamily: 'Inter_600SemiBold',

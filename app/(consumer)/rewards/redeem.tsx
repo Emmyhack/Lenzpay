@@ -5,15 +5,16 @@ import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Slider } from '@/components/ui/Slider';
 import { Button } from '@/components/ui/Button';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useRewardsStore } from '@/store/rewards';
 import { redeemPoints } from '@/services/rewards';
 import { showToast } from '@/components/ui/Toast';
 import type { RedemptionMethod } from '@/types/rewards';
 
-const METHODS: { key: RedemptionMethod; label: string; icon: string; subtitle: string }[] = [
-  { key: 'cashback', label: 'Cashback', icon: '💰', subtitle: 'Straight to your default source' },
-  { key: 'airtime', label: 'Airtime', icon: '📶', subtitle: 'Top up your phone instantly' },
-  { key: 'bank_transfer', label: 'Bank Transfer', icon: '🏦', subtitle: '1-3 business days' },
+const METHODS: { key: RedemptionMethod; label: string; icon: IconName; subtitle: string }[] = [
+  { key: 'cashback', label: 'Cashback', icon: 'cash', subtitle: 'Straight to your default source' },
+  { key: 'airtime', label: 'Airtime', icon: 'wifi', subtitle: 'Top up your phone instantly' },
+  { key: 'bank_transfer', label: 'Bank Transfer', icon: 'business', subtitle: '1-3 business days' },
 ];
 
 const POINTS_PER_NGN = 2; // 2 pts = ₦1
@@ -52,12 +53,14 @@ export default function RedeemScreen() {
             style={[styles.methodCard, method === m.key && styles.methodCardActive]}
             activeOpacity={0.85}
           >
-            <Text style={styles.methodIcon}>{m.icon}</Text>
+            <View style={styles.methodIconWrap}>
+              <Icon name={m.icon} size={18} color={Colors.onSurfaceVariant} />
+            </View>
             <View style={styles.methodInfo}>
               <Text style={styles.methodLabel}>{m.label}</Text>
               <Text style={styles.methodSubtitle}>{m.subtitle}</Text>
             </View>
-            {method === m.key ? <Text style={styles.check}>✓</Text> : null}
+            {method === m.key ? <Icon name="checkmark-circle" size={20} color={Colors.primary} /> : null}
           </TouchableOpacity>
         ))}
 
@@ -103,7 +106,14 @@ const styles = StyleSheet.create({
   methodCardActive: {
     borderColor: Colors.primary,
   },
-  methodIcon: { fontSize: 22 },
+  methodIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   methodInfo: { flex: 1 },
   methodLabel: {
     fontFamily: 'Inter_600SemiBold',
@@ -115,10 +125,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.onSurfaceVariant,
     marginTop: 2,
-  },
-  check: {
-    color: Colors.primary,
-    fontSize: 18,
   },
   sliderSection: {
     marginTop: Spacing.xxl,

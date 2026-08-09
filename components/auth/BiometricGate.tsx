@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useBiometrics } from '@/hooks/useBiometrics';
 
 interface BiometricGateProps {
@@ -13,7 +14,7 @@ export function BiometricGate({ onSuccess, onFail, promptMessage }: BiometricGat
   const { isSupported, isEnrolled, type, authenticate } = useBiometrics();
 
   const label = type === 'faceId' ? 'Face ID' : type === 'fingerprint' ? 'Fingerprint' : 'Biometrics';
-  const glyph = type === 'faceId' ? '🙂' : '👆';
+  const glyph: IconName = type === 'faceId' ? 'scan-outline' : 'finger-print';
 
   const handlePress = async () => {
     const success = await authenticate(promptMessage);
@@ -26,7 +27,7 @@ export function BiometricGate({ onSuccess, onFail, promptMessage }: BiometricGat
   return (
     <TouchableOpacity onPress={handlePress} style={styles.wrap} accessibilityRole="button" accessibilityLabel={`Authenticate with ${label}`}>
       <View style={styles.ring}>
-        <Text style={styles.glyph}>{glyph}</Text>
+        <Icon name={glyph} size={32} color={Colors.primary} />
       </View>
       <Text style={styles.label}>Use {label}</Text>
     </TouchableOpacity>
@@ -48,7 +49,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glyph: { fontSize: 32 },
   label: {
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,

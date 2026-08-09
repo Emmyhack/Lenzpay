@@ -30,7 +30,6 @@ export async function initiatePayment(params: InitiatePaymentParams): Promise<In
       transaction: {
         id: `txn_${Date.now()}`,
         merchantName: 'Merchant',
-        merchantIcon: '🛍️',
         category: 'other',
         amount: params.amountNGN,
         direction: 'debit',

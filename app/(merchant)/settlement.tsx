@@ -33,7 +33,7 @@ export default function SettlementScreen() {
         data={settlements ?? []}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={!isLoading ? <EmptyState icon="🏦" title="No settlements yet" /> : null}
+        ListEmptyComponent={!isLoading ? <EmptyState icon="business-outline" title="No settlements yet" /> : null}
         renderItem={({ item }) => <SettlementCard settlement={item} />}
       />
     </View>

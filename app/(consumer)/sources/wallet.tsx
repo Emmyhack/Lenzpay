@@ -4,20 +4,21 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
+import { BankLogo } from '@/components/ui/BankLogo';
 import { useSourcesStore } from '@/store/sources';
 import { showToast } from '@/components/ui/Toast';
 
 interface WalletProvider {
   key: string;
   name: string;
-  icon: string;
+  bankCode: string; // matches mock/banks.ts NIGERIAN_BANKS
 }
 
 const WALLET_PROVIDERS: WalletProvider[] = [
-  { key: 'opay', name: 'OPay', icon: '🅾️' },
-  { key: 'kuda', name: 'Kuda', icon: '🟣' },
-  { key: 'palmpay', name: 'PalmPay', icon: '🌴' },
-  { key: 'moniepoint', name: 'Moniepoint', icon: '🔵' },
+  { key: 'opay', name: 'OPay', bankCode: '999992' },
+  { key: 'kuda', name: 'Kuda', bankCode: '50211' },
+  { key: 'palmpay', name: 'PalmPay', bankCode: '999991' },
+  { key: 'moniepoint', name: 'Moniepoint', bankCode: '50515' },
 ];
 
 export default function AddWalletScreen() {
@@ -45,6 +46,7 @@ export default function AddWalletScreen() {
       rawBalance: 0,
       rawCurrency: 'NGN',
       isDefault: false,
+      bankCode: provider.bankCode,
       flag: '🇳🇬',
       lastSynced: new Date(),
     });
@@ -69,7 +71,7 @@ export default function AddWalletScreen() {
               <ActivityIndicator color={Colors.primary} />
             ) : (
               <>
-                <Text style={styles.cardIcon}>{provider.icon}</Text>
+                <BankLogo code={provider.bankCode} name={provider.name} size={48} />
                 <Text style={styles.cardName}>{provider.name}</Text>
               </>
             )}
@@ -100,7 +102,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
   },
-  cardIcon: { fontSize: 32 },
   cardName: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: Typography.bodyMd.fontSize,

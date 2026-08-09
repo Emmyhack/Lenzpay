@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 export type BadgeKind =
   | 'NGN'
@@ -41,17 +42,27 @@ const BADGE_LABEL: Record<BadgeKind, string> = {
   BTC: 'BTC',
   USDT: 'USDT',
   ETH: 'ETH',
-  AUTO: '⚡ AUTO',
-  SPLIT: '🔀 SPLIT',
-  LOW: '✗ LOW',
-  VERIFIED: '✓ Verified',
+  AUTO: 'AUTO',
+  SPLIT: 'SPLIT',
+  LOW: 'LOW',
+  VERIFIED: 'Verified',
   DEFAULT: 'Default',
+};
+
+const BADGE_ICON: Partial<Record<BadgeKind, IconName>> = {
+  AUTO: 'flash',
+  SPLIT: 'shuffle',
+  LOW: 'close-circle',
+  VERIFIED: 'checkmark-circle',
 };
 
 export function Badge({ kind, label, style }: BadgeProps) {
   const color = BADGE_COLOR[kind];
+  const icon = BADGE_ICON[kind];
+
   return (
     <View style={[styles.base, { backgroundColor: color + '20' }, style]}>
+      {icon ? <Icon name={icon} size={11} color={color} /> : null}
       <Text style={[styles.text, { color }]}>{label ?? BADGE_LABEL[kind]}</Text>
     </View>
   );
@@ -59,6 +70,9 @@ export function Badge({ kind, label, style }: BadgeProps) {
 
 const styles = StyleSheet.create({
   base: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     alignSelf: 'flex-start',
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.sm + 2,

@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { usePaymentStore } from '@/store/payment';
 
 export default function FailedScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const amountNGN = usePaymentStore((s) => s.amountNGN);
   const merchant = usePaymentStore((s) => s.merchant);
   const failureReason = usePaymentStore((s) => s.failureReason);
@@ -36,9 +39,15 @@ export default function FailedScreen() {
   };
 
   return (
-    <View style={styles.wrap}>
+    <ScrollView
+      style={styles.wrap}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + Spacing.xxxl, paddingBottom: insets.bottom + Spacing.xxl },
+      ]}
+    >
       <Animated.View style={[styles.ring, ringStyle]}>
-        <Text style={styles.cross}>✕</Text>
+        <Icon name="close" size={36} color={Colors.error} />
       </Animated.View>
 
       <Text style={styles.title}>Payment Failed</Text>
@@ -46,7 +55,7 @@ export default function FailedScreen() {
 
       <TouchableOpacity onPress={() => setExpanded((v) => !v)} style={styles.accordionHeader}>
         <Text style={styles.accordionTitle}>What happened?</Text>
-        <Text style={styles.accordionChevron}>{expanded ? '︿' : '﹀'}</Text>
+        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={Colors.primary} />
       </TouchableOpacity>
       {expanded ? (
         <Text style={styles.accordionBody}>
@@ -56,11 +65,11 @@ export default function FailedScreen() {
       ) : null}
 
       <View style={styles.actions}>
-        <Button label="Try Another Source →" onPress={handleTryAnother} variant="destructive" />
+        <Button label="Try Another Source" trailingArrow onPress={handleTryAnother} variant="destructive" />
         <Button label="Adjust Limit" onPress={handleAdjustLimit} variant="secondary" />
         <Button label="Back to Home" onPress={handleBackHome} variant="tertiary" />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -68,8 +77,9 @@ const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  content: {
     alignItems: 'center',
-    paddingTop: Spacing.xxxl,
     paddingHorizontal: Spacing.xl,
   },
   ring: {
@@ -82,10 +92,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
-  },
-  cross: {
-    fontSize: 36,
-    color: Colors.error,
   },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -109,10 +115,6 @@ const styles = StyleSheet.create({
   accordionTitle: {
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,
-    color: Colors.primary,
-  },
-  accordionChevron: {
-    fontSize: 12,
     color: Colors.primary,
   },
   accordionBody: {

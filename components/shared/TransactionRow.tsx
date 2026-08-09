@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { Icon } from '@/components/ui/Icon';
+import { CATEGORY_ICON } from '@/mock/data';
 import type { Transaction } from '@/types/payment';
 
 interface TransactionRowProps {
@@ -21,7 +23,7 @@ export function TransactionRow({ transaction, onPress }: TransactionRowProps) {
       accessibilityRole={onPress ? 'button' : undefined}
     >
       <View style={styles.iconWrap}>
-        <Text style={styles.icon}>{transaction.merchantIcon}</Text>
+        <Icon name={CATEGORY_ICON[transaction.category] ?? CATEGORY_ICON.other} size={18} color={Colors.onSurfaceVariant} />
       </View>
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>
@@ -59,7 +61,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: { fontSize: 20 },
   info: { flex: 1 },
   name: {
     fontFamily: 'Inter_600SemiBold',

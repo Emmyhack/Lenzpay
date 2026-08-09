@@ -115,7 +115,7 @@ export default function MerchantSignupScreen() {
           )}
         />
 
-        <Button label="Continue →" onPress={handleSubmit(onSubmit)} loading={isSubmitting} style={styles.submit} />
+        <Button label="Continue" trailingArrow onPress={handleSubmit(onSubmit)} loading={isSubmitting} style={styles.submit} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

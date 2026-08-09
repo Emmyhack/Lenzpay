@@ -5,6 +5,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { showToast } from '@/components/ui/Toast';
 
 export default function MerchantKYCScreen() {
@@ -75,17 +76,17 @@ export default function MerchantKYCScreen() {
             <Image source={{ uri: docUri }} style={styles.captureThumb} />
           ) : (
             <View style={styles.capturePlaceholder}>
-              <Text style={styles.captureIcon}>📄</Text>
+              <Icon name="document-text-outline" size={24} color={Colors.onSurfaceVariant} />
             </View>
           )}
           <View style={styles.captureInfo}>
             <Text style={styles.captureLabel}>Certificate photo</Text>
             <Text style={styles.captureHint}>{docUri ? 'Tap to retake' : 'Tap to capture'}</Text>
           </View>
-          {docUri ? <Text style={styles.captureCheck}>✓</Text> : null}
+          {docUri ? <Icon name="checkmark-circle" size={20} color={Colors.success} /> : null}
         </TouchableOpacity>
 
-        <Button label="Continue →" onPress={handleSubmit} loading={submitting} disabled={!canSubmit} style={styles.submit} />
+        <Button label="Continue" trailingArrow onPress={handleSubmit} loading={submitting} disabled={!canSubmit} style={styles.submit} />
       </ScrollView>
 
       <Modal visible={capturing} animationType="slide">
@@ -152,7 +153,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  captureIcon: { fontSize: 22 },
   captureInfo: { flex: 1 },
   captureLabel: {
     fontFamily: 'Inter_600SemiBold',
@@ -164,10 +164,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.onSurfaceVariant,
     marginTop: 2,
-  },
-  captureCheck: {
-    color: Colors.success,
-    fontSize: 18,
   },
   submit: {
     marginTop: Spacing.xl,

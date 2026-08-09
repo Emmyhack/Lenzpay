@@ -7,6 +7,9 @@ import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Badge, type BadgeKind } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
+import { CryptoLogo, hasCryptoLogo } from '@/components/ui/CryptoLogo';
+import { BankLogo } from '@/components/ui/BankLogo';
 import { TransactionRow } from '@/components/shared/TransactionRow';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useSourcesStore } from '@/store/sources';
@@ -50,7 +53,7 @@ export default function SourceDetailScreen() {
     return (
       <View style={styles.wrap}>
         <ScreenHeader title="Source" />
-        <EmptyState icon="🏦" title="Source not found" message="This account may have been removed." />
+        <EmptyState icon="business-outline" title="Source not found" message="This account may have been removed." />
       </View>
     );
   }
@@ -67,7 +70,17 @@ export default function SourceDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.flag}>{source.flag}</Text>
+          {source.icon ? (
+            <View style={[styles.iconWrap, { backgroundColor: source.iconColor + '20' }]}>
+              <Icon name={source.icon} size={22} color={source.iconColor} />
+            </View>
+          ) : hasCryptoLogo(source.rawCurrency) ? (
+            <CryptoLogo code={source.rawCurrency} size={44} />
+          ) : source.bankCode ? (
+            <BankLogo code={source.bankCode} name={source.label} size={44} />
+          ) : (
+            <Text style={styles.flag}>{source.flag}</Text>
+          )}
           <Badge kind={(source.rawCurrency === 'NGN' ? 'NGN' : source.rawCurrency) as BadgeKind} />
         </View>
 
@@ -76,7 +89,8 @@ export default function SourceDetailScreen() {
 
         <View style={styles.actionsRow}>
           <Button
-            label={source.isDefault ? '⚡ Default' : 'Set Default'}
+            label={source.isDefault ? 'Default' : 'Set Default'}
+            icon={source.isDefault ? 'flash' : undefined}
             variant="secondary"
             onPress={() => setDefault(source.id)}
             disabled={source.isDefault}
@@ -84,7 +98,8 @@ export default function SourceDetailScreen() {
             style={styles.actionButton}
           />
           <Button
-            label="🔄 Refresh"
+            label="Refresh"
+            icon="refresh"
             variant="secondary"
             onPress={() => {
               refreshBalances();
@@ -111,7 +126,7 @@ export default function SourceDetailScreen() {
           {relatedTransactions.length > 0 ? (
             relatedTransactions.map((txn) => <TransactionRow key={txn.id} transaction={txn} />)
           ) : (
-            <EmptyState icon="🧾" title="No activity yet" />
+            <EmptyState icon="receipt-outline" title="No activity yet" />
           )}
         </View>
 
@@ -150,6 +165,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   flag: { fontSize: 32 },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   balanceLabel: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.labelSm.fontSize,

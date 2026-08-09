@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import { CryptoLogo, hasCryptoLogo } from '@/components/ui/CryptoLogo';
+import { BankLogo } from '@/components/ui/BankLogo';
 import type { PaymentSource, SourceStatus } from '@/types/payment';
 
 interface SourceCardProps {
@@ -11,14 +14,14 @@ interface SourceCardProps {
 }
 
 // Status → tag config
-const STATUS_CONFIG: Record<SourceStatus, { label: string; color: string; showBorder: boolean }> = {
-  auto: { label: '⚡ AUTO', color: Colors.primary, showBorder: true },
-  split: { label: '🔀 SPLIT', color: Colors.warning, showBorder: true },
-  selected: { label: '● SELECTED', color: Colors.success, showBorder: true },
-  insufficient: { label: '✗ LOW', color: Colors.error, showBorder: false },
-  active: { label: '✓ OK', color: Colors.success, showBorder: false },
-  default: { label: '✓ OK', color: Colors.success, showBorder: false },
-  error: { label: 'ERROR', color: Colors.error, showBorder: true },
+const STATUS_CONFIG: Record<SourceStatus, { label: string; icon: IconName; color: string; showBorder: boolean }> = {
+  auto: { label: 'AUTO', icon: 'flash', color: Colors.primary, showBorder: true },
+  split: { label: 'SPLIT', icon: 'shuffle', color: Colors.warning, showBorder: true },
+  selected: { label: 'SELECTED', icon: 'checkmark-circle', color: Colors.success, showBorder: true },
+  insufficient: { label: 'LOW', icon: 'close-circle', color: Colors.error, showBorder: false },
+  active: { label: 'OK', icon: 'checkmark-circle', color: Colors.success, showBorder: false },
+  default: { label: 'OK', icon: 'checkmark-circle', color: Colors.success, showBorder: false },
+  error: { label: 'ERROR', icon: 'alert-circle', color: Colors.error, showBorder: true },
 };
 
 export function SourceCard({ source, status, splitAmount, onPress }: SourceCardProps) {
@@ -56,7 +59,17 @@ export function SourceCard({ source, status, splitAmount, onPress }: SourceCardP
       accessibilityRole={isInteractive ? 'button' : undefined}
       accessibilityState={{ disabled: isInsufficient, selected: status === 'selected' }}
     >
-      <Text style={styles.flag}>{source.flag}</Text>
+      {source.icon ? (
+        <View style={[styles.iconWrap, { backgroundColor: source.iconColor + '20' }]}>
+          <Icon name={source.icon} size={16} color={source.iconColor} />
+        </View>
+      ) : hasCryptoLogo(source.rawCurrency) ? (
+        <CryptoLogo code={source.rawCurrency} size={32} />
+      ) : source.bankCode ? (
+        <BankLogo code={source.bankCode} name={source.label} size={32} />
+      ) : (
+        <Text style={styles.flag}>{source.flag}</Text>
+      )}
       <View style={styles.info}>
         <Text style={styles.label}>
           {source.label} {source.accountMask}
@@ -68,6 +81,7 @@ export function SourceCard({ source, status, splitAmount, onPress }: SourceCardP
         </Text>
       </View>
       <View style={[styles.tag, { backgroundColor: cfg.color + '20' }]}>
+        <Icon name={cfg.icon} size={11} color={cfg.color} />
         <Text style={[styles.tagText, { color: cfg.color }]}>{cfg.label}</Text>
       </View>
     </TouchableOpacity>
@@ -86,6 +100,13 @@ const styles = StyleSheet.create({
   },
   insufficient: { opacity: 0.4 },
   flag: { fontSize: 24 },
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   info: { flex: 1 },
   label: {
     fontFamily: 'Inter_600SemiBold',
@@ -99,6 +120,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     borderRadius: Radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 4,

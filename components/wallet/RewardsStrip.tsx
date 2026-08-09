@@ -1,14 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Icon } from '@/components/ui/Icon';
+import { TIER_ICON } from '@/mock/rewards';
 import type { RewardsTierName } from '@/types/rewards';
-
-const TIER_ICON: Record<RewardsTierName, string> = {
-  Bronze: '🥉',
-  Silver: '🥈',
-  Gold: '⭐',
-  Platinum: '💎',
-};
 
 interface RewardsStripProps {
   tier: RewardsTierName;
@@ -18,12 +13,17 @@ interface RewardsStripProps {
 }
 
 export function RewardsStrip({ tier, points, cashbackNGN, onPress }: RewardsStripProps) {
+  const tierIcon = TIER_ICON[tier];
+
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.wrap}>
-      <Text style={styles.text}>
-        {TIER_ICON[tier]} {tier} · {points.toLocaleString()} pts → ₦{cashbackNGN.toLocaleString()}
-      </Text>
-      <Text style={styles.chevron}>›</Text>
+      <View style={styles.left}>
+        <Icon name={tierIcon.name} size={16} color={tierIcon.color} />
+        <Text style={styles.text}>
+          {tier} · {points.toLocaleString()} pts → ₦{cashbackNGN.toLocaleString()}
+        </Text>
+      </View>
+      <Icon name="chevron-forward" size={16} color={Colors.onSurfaceMuted} />
     </TouchableOpacity>
   );
 }
@@ -40,13 +40,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   text: {
     fontFamily: 'Inter_500Medium',
     fontSize: 13,
     color: Colors.primary,
-  },
-  chevron: {
-    color: Colors.onSurfaceMuted,
-    fontSize: 16,
   },
 });

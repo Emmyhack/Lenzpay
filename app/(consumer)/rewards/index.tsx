@@ -6,13 +6,13 @@ import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useRewardsStore } from '@/store/rewards';
-import { CASHBACK_RATES } from '@/mock/data';
-import { REWARDS_TIERS } from '@/mock/rewards';
+import { CASHBACK_RATES, CATEGORY_ICON } from '@/mock/data';
+import { REWARDS_TIERS, TIER_ICON } from '@/mock/rewards';
 import { fetchTransactions } from '@/services/payments';
 
-const TIER_ICON: Record<string, string> = { Bronze: '🥉', Silver: '🥈', Gold: '⭐', Platinum: '💎' };
 const CATEGORY_LABEL: Record<string, string> = {
   transport: 'Transport',
   food: 'Food',
@@ -41,9 +41,10 @@ export default function RewardsScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <Text style={styles.tierBadge}>
-            {TIER_ICON[tier]} {tier}
-          </Text>
+          <View style={styles.tierBadgeRow}>
+            <Icon name={TIER_ICON[tier].name} size={16} color={TIER_ICON[tier].color} />
+            <Text style={styles.tierBadge}>{tier}</Text>
+          </View>
           <Text style={styles.pointsLabel}>POINTS</Text>
           <Text style={styles.points}>{points.toLocaleString()}</Text>
           <Text style={styles.cashback}>₦{lifetimeCashbackNGN.toLocaleString()} lifetime cashback</Text>
@@ -58,12 +59,15 @@ export default function RewardsScreen() {
               </Text>
             </View>
           ) : (
-            <Text style={styles.progressLabel}>You've reached the top tier 🎉</Text>
+            <View style={styles.topTierRow}>
+              <Icon name="sparkles" size={13} color={Colors.warning} />
+              <Text style={[styles.progressLabel, { marginTop: 0 }]}>You've reached the top tier</Text>
+            </View>
           )}
         </View>
 
         <View style={styles.section}>
-          <SectionTitle title="Cashback Rates" rightLabel="Tier benefits →" onPressRight={() => router.push('/(consumer)/rewards/tiers')} padded />
+          <SectionTitle title="Cashback Rates" rightLabel="Tier benefits" onPressRight={() => router.push('/(consumer)/rewards/tiers')} padded />
           <View style={styles.rateGrid}>
             {Object.entries(CASHBACK_RATES).map(([key, rate]) => (
               <View key={key} style={styles.rateCard}>
@@ -79,7 +83,9 @@ export default function RewardsScreen() {
           {pointsHistory.length > 0 ? (
             pointsHistory.map((txn) => (
               <View key={txn.id} style={styles.historyRow}>
-                <Text style={styles.historyIcon}>{txn.merchantIcon}</Text>
+                <View style={styles.historyIconWrap}>
+                  <Icon name={CATEGORY_ICON[txn.category] ?? CATEGORY_ICON.other} size={16} color={Colors.onSurfaceVariant} />
+                </View>
                 <View style={styles.historyInfo}>
                   <Text style={styles.historyName}>{txn.merchantName}</Text>
                   <Text style={styles.historyDate}>{txn.timestamp.toLocaleDateString()}</Text>
@@ -88,12 +94,12 @@ export default function RewardsScreen() {
               </View>
             ))
           ) : (
-            <EmptyState icon="⭐" title="No points yet" message="Points show up here after your first payment." />
+            <EmptyState icon="star-outline" title="No points yet" message="Points show up here after your first payment." />
           )}
         </View>
 
         <View style={styles.footer}>
-          <Button label="Redeem Points →" onPress={() => router.push('/(consumer)/rewards/redeem')} disabled={points === 0} />
+          <Button label="Redeem Points" trailingArrow onPress={() => router.push('/(consumer)/rewards/redeem')} disabled={points === 0} />
         </View>
       </ScrollView>
     </View>
@@ -116,6 +122,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary + '30',
     padding: Spacing.xl,
     alignItems: 'center',
+  },
+  tierBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   tierBadge: {
     fontFamily: 'Inter_600SemiBold',
@@ -164,6 +175,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.sm,
   },
+  topTierRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: Spacing.sm,
+  },
   section: {
     marginTop: Spacing.xxl,
   },
@@ -197,7 +215,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.sm,
   },
-  historyIcon: { fontSize: 20 },
+  historyIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   historyInfo: { flex: 1 },
   historyName: {
     fontFamily: 'Inter_600SemiBold',

@@ -5,6 +5,8 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
+import { CryptoLogo } from '@/components/ui/CryptoLogo';
 import { useSourcesStore } from '@/store/sources';
 import { showToast } from '@/components/ui/Toast';
 import type { CurrencyCode } from '@/types/payment';
@@ -12,14 +14,13 @@ import type { CurrencyCode } from '@/types/payment';
 interface CoinField {
   code: 'BTC' | 'USDT' | 'ETH';
   label: string;
-  flag: string;
   placeholder: string;
 }
 
 const COINS: CoinField[] = [
-  { code: 'BTC', label: 'Bitcoin', flag: '₿', placeholder: 'bc1q...' },
-  { code: 'USDT', label: 'USDT', flag: '💵', placeholder: 'T... (TRC20)' },
-  { code: 'ETH', label: 'Ethereum', flag: '🔷', placeholder: '0x...' },
+  { code: 'BTC', label: 'Bitcoin', placeholder: 'bc1q...' },
+  { code: 'USDT', label: 'USDT', placeholder: 'T... (TRC20)' },
+  { code: 'ETH', label: 'Ethereum', placeholder: '0x...' },
 ];
 
 export default function AddCryptoScreen() {
@@ -67,7 +68,6 @@ export default function AddCryptoScreen() {
       rawBalance: 0,
       rawCurrency: coin.code as CurrencyCode,
       isDefault: false,
-      flag: coin.flag,
       lastSynced: new Date(),
     });
     showToast('success', `${coin.label} wallet added`);
@@ -86,7 +86,8 @@ export default function AddCryptoScreen() {
       rawBalance: 0,
       rawCurrency: 'USDT',
       isDefault: false,
-      flag: '🔑',
+      icon: 'key',
+      iconColor: Colors.secondary,
       lastSynced: new Date(),
     });
     showToast('success', `${name} connected`);
@@ -101,7 +102,7 @@ export default function AddCryptoScreen() {
         {COINS.map((coin) => (
           <View key={coin.code} style={styles.coinCard}>
             <View style={styles.coinHeader}>
-              <Text style={styles.coinFlag}>{coin.flag}</Text>
+              <CryptoLogo code={coin.code} size={26} />
               <Text style={styles.coinLabel}>{coin.label}</Text>
             </View>
             <View style={styles.addressRow}>
@@ -115,7 +116,7 @@ export default function AddCryptoScreen() {
                 accessibilityLabel={`${coin.label} address`}
               />
               <TouchableOpacity onPress={() => openScanner(coin.code)} style={styles.scanButton}>
-                <Text style={styles.scanIcon}>📷</Text>
+                <Icon name="camera-outline" size={18} color={Colors.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
             <Button
@@ -198,7 +199,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  coinFlag: { fontSize: 20 },
   coinLabel: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: Typography.bodyMd.fontSize,
@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scanIcon: { fontSize: 18 },
   orLabel: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.labelSm.fontSize,

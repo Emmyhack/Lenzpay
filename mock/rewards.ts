@@ -1,4 +1,13 @@
-import type { RewardsTier } from '@/types/rewards';
+import type { RewardsTier, RewardsTierName } from '@/types/rewards';
+import type { IconName } from '@/components/ui/Icon';
+import { Colors } from '@/constants/theme';
+
+export const TIER_ICON: Record<RewardsTierName, { name: IconName; color: string }> = {
+  Bronze: { name: 'medal', color: '#cd7f32' }, // no design-system token for bronze/silver — one-off medal tones
+  Silver: { name: 'medal', color: '#c0c0c0' },
+  Gold: { name: 'trophy', color: Colors.warning },
+  Platinum: { name: 'diamond', color: Colors.secondary },
+};
 
 export const REWARDS_TIERS: RewardsTier[] = [
   {

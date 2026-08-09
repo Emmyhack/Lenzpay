@@ -4,12 +4,13 @@ import { useRouter } from 'expo-router';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Badge } from '@/components/ui/Badge';
+import { Icon } from '@/components/ui/Icon';
 import { AmountInput } from '@/components/payment/AmountInput';
 import { Chip } from '@/components/ui/Chip';
 import { Button } from '@/components/ui/Button';
 import { usePaymentStore } from '@/store/payment';
 import { useFXRates } from '@/hooks/useFXRates';
-import { CASHBACK_RATES } from '@/mock/data';
+import { CASHBACK_RATES, CATEGORY_ICON } from '@/mock/data';
 import type { Merchant } from '@/types/payment';
 
 const QUICK_AMOUNTS = [1_000, 2_000, 5_000, 10_000];
@@ -21,7 +22,6 @@ const MANUAL_MERCHANT: Merchant = {
   isVerified: false,
   location: '',
   acceptedCurrencies: ['NGN'],
-  icon: '✏️',
 };
 
 export default function AmountScreen() {
@@ -59,7 +59,9 @@ export default function AmountScreen() {
       <ScreenHeader title="Enter Amount" />
 
       <View style={styles.merchantRow}>
-        <Text style={styles.merchantIcon}>{merchant.icon}</Text>
+        <View style={styles.merchantIconWrap}>
+          <Icon name={CATEGORY_ICON[merchant.category] ?? CATEGORY_ICON.other} size={14} color={Colors.onSurfaceVariant} />
+        </View>
         <Text style={styles.merchantName}>{merchant.name}</Text>
         {merchant.isVerified ? <Badge kind="VERIFIED" /> : null}
       </View>
@@ -70,8 +72,9 @@ export default function AmountScreen() {
 
       {rewardsEstimate ? (
         <View style={styles.rewardsHint}>
+          <Icon name="star" size={12} color={Colors.primary} />
           <Text style={styles.rewardsText}>
-            ⭐ Earn ~{rewardsEstimate.points} pts · ₦{rewardsEstimate.cashback} cashback
+            Earn ~{rewardsEstimate.points} pts · ₦{rewardsEstimate.cashback} cashback
           </Text>
         </View>
       ) : null}
@@ -83,7 +86,7 @@ export default function AmountScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Button label="Continue →" onPress={handleContinue} disabled={amountNGN <= 0} />
+        <Button label="Continue" trailingArrow onPress={handleContinue} disabled={amountNGN <= 0} />
       </View>
     </View>
   );
@@ -101,7 +104,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     marginBottom: Spacing.xl,
   },
-  merchantIcon: { fontSize: 18 },
+  merchantIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   merchantName: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: Typography.bodyMd.fontSize,
@@ -112,6 +122,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   rewardsHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     alignSelf: 'center',
     backgroundColor: Colors.primary + '18',
     borderRadius: Radius.pill,

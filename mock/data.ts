@@ -1,5 +1,6 @@
 import type { PaymentSource, Transaction, Merchant } from '@/types/payment';
 import type { User } from '@/types/user';
+import type { IconName } from '@/components/ui/Icon';
 
 export const MOCK_USER: User = {
   id: 'usr_001',
@@ -24,6 +25,7 @@ export const MOCK_SOURCES: PaymentSource[] = [
     rawBalance: 842_000,
     rawCurrency: 'NGN',
     isDefault: true,
+    bankCode: '044',
     flag: '🇳🇬',
     lastSynced: new Date(),
   },
@@ -37,6 +39,7 @@ export const MOCK_SOURCES: PaymentSource[] = [
     rawBalance: 320_000,
     rawCurrency: 'NGN',
     isDefault: false,
+    bankCode: '999992',
     flag: '🇳🇬',
     lastSynced: new Date(),
   },
@@ -63,7 +66,6 @@ export const MOCK_SOURCES: PaymentSource[] = [
     rawBalance: 0.019,
     rawCurrency: 'BTC',
     isDefault: false,
-    flag: '₿',
     lastSynced: new Date(),
   },
   {
@@ -76,7 +78,6 @@ export const MOCK_SOURCES: PaymentSource[] = [
     rawBalance: 320,
     rawCurrency: 'USDT',
     isDefault: false,
-    flag: '💵',
     lastSynced: new Date(),
   },
 ];
@@ -85,7 +86,6 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
   {
     id: 'txn_001',
     merchantName: 'Bolt Ride',
-    merchantIcon: '🚗',
     category: 'transport',
     amount: 2_800,
     direction: 'debit',
@@ -100,7 +100,6 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
   {
     id: 'txn_002',
     merchantName: 'Shoprite Lekki',
-    merchantIcon: '🛒',
     category: 'shopping',
     amount: 18_400,
     direction: 'debit',
@@ -115,7 +114,6 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
   {
     id: 'txn_003',
     merchantName: 'Coffee & Co.',
-    merchantIcon: '☕',
     category: 'food',
     amount: 4_500,
     direction: 'debit',
@@ -137,7 +135,6 @@ export const MOCK_MERCHANT: Merchant = {
   isVerified: true,
   location: 'Lagos, NG',
   acceptedCurrencies: ['NGN', 'USD', 'BTC', 'USDT'],
-  icon: '🚗',
 };
 
 export const CASHBACK_RATES: Record<string, number> = {
@@ -146,4 +143,12 @@ export const CASHBACK_RATES: Record<string, number> = {
   shopping: 0.01,
   crypto: 0.03,
   other: 0.005,
+};
+
+export const CATEGORY_ICON: Record<string, IconName> = {
+  transport: 'car',
+  food: 'cafe',
+  shopping: 'cart',
+  crypto: 'logo-bitcoin',
+  other: 'ellipsis-horizontal-circle',
 };
