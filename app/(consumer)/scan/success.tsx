@@ -23,7 +23,12 @@ export default function SuccessScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const transaction = usePaymentStore((s) => s.lastTransaction);
+  const legs = usePaymentStore((s) => s.settledLegs);
+  const pendingLegs = usePaymentStore((s) => s.pendingCollectionLegs);
   const reset = usePaymentStore((s) => s.reset);
+
+  const totalFees = (legs ?? []).reduce((sum, leg) => sum + leg.feeInSettlementCurrency, 0);
+  const merchantWord = transaction?.merchantName ?? 'The merchant';
 
   const ringScale = useSharedValue(0);
   const badgeOpacity = useSharedValue(0);
@@ -79,9 +84,45 @@ export default function SuccessScreen() {
         <ReceiptRow label="Mode" value={transaction.mode === 'split' ? 'Smart Split' : transaction.mode === 'auto' ? 'Auto' : 'Manual'} />
         {transaction.fxRate ? <ReceiptRow label="FX Rate" value={transaction.fxRate} /> : null}
         <ReceiptRow label="Cashback" value={`₦${transaction.cashbackNGN.toLocaleString()}`} />
-        <ReceiptRow label="Fee" value="₦0" />
+        <ReceiptRow label="Fee" value={`₦${Math.round(totalFees).toLocaleString()}`} />
+        <ReceiptRow label="Ref" value={transaction.txnRef} />
         <ReceiptRow label="Time" value={formatTime(transaction.timestamp)} last />
       </Card>
+
+      {/* The merchant has been paid from Lenz's float; these debits land
+          shortly. Saying so beats letting the charge arrive unexplained. */}
+      {pendingLegs && pendingLegs.length > 0 ? (
+        <View style={styles.pendingBanner}>
+          <Icon name="time-outline" size={16} color={Colors.onSurfaceVariant} />
+          <Text style={styles.pendingText}>
+            {pendingLegs
+              .map((leg) => `₦${leg.amountInSettlementCurrency.toLocaleString()} from ${leg.source.label}`)
+              .join(' and ')}{' '}
+            {pendingLegs.length > 1 ? 'are' : 'is'} still being debited. {merchantWord} already has
+            the full amount.
+          </Text>
+        </View>
+      ) : null}
+
+      {/* §5.4 — a waterfall receipt has to show which account paid what, or a
+          dispute is untraceable. */}
+      {legs && legs.length > 1 ? (
+        <Card variant="containerHigh" style={styles.receipt}>
+          <Text style={styles.breakdownTitle}>Funding breakdown</Text>
+          {legs.map((leg, index) => (
+            <ReceiptRow
+              key={leg.id}
+              label={
+                leg.sourceCurrency === leg.settlementCurrency
+                  ? leg.source.label
+                  : `${leg.source.label} (${leg.amountInSourceCurrency} ${leg.sourceCurrency})`
+              }
+              value={`₦${leg.amountInSettlementCurrency.toLocaleString()}`}
+              last={index === legs.length - 1}
+            />
+          ))}
+        </Card>
+      ) : null}
 
       <View style={styles.actions}>
         <Button label="Back to Home" onPress={handleBackHome} />
@@ -155,6 +196,28 @@ const styles = StyleSheet.create({
   receipt: {
     width: '100%',
     marginTop: Spacing.xxl,
+  },
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    width: '100%',
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginTop: Spacing.xl,
+  },
+  pendingText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceVariant,
+  },
+  breakdownTitle: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: Typography.titleSm.fontSize,
+    color: Colors.onSurface,
+    marginBottom: Spacing.xs,
   },
   receiptRow: {
     flexDirection: 'row',

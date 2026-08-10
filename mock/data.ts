@@ -28,6 +28,9 @@ export const MOCK_SOURCES: PaymentSource[] = [
     bankCode: '044',
     flag: '🇳🇬',
     lastSynced: new Date(),
+    priorityWeight: 90,
+    reliability: 0.99,
+    providerRef: 'mono:acc_access_4421',
   },
   {
     id: 'src_opay_001',
@@ -42,6 +45,9 @@ export const MOCK_SOURCES: PaymentSource[] = [
     bankCode: '999992',
     flag: '🇳🇬',
     lastSynced: new Date(),
+    priorityWeight: 70,
+    reliability: 0.96,
+    providerRef: 'opay:wallet_7890',
   },
   {
     id: 'src_grey_001',
@@ -55,6 +61,9 @@ export const MOCK_SOURCES: PaymentSource[] = [
     isDefault: false,
     flag: '🇺🇸',
     lastSynced: new Date(),
+    priorityWeight: 50,
+    reliability: 0.97,
+    providerRef: 'grey:acc_usd_001',
   },
   {
     id: 'src_btc_001',
@@ -67,6 +76,12 @@ export const MOCK_SOURCES: PaymentSource[] = [
     rawCurrency: 'BTC',
     isDefault: false,
     lastSynced: new Date(),
+    // Held as savings — the engine only reaches for it when nothing else can
+    // cover the payment (§5.2 "keep buffer").
+    isReserve: true,
+    priorityWeight: 20,
+    reliability: 0.94,
+    providerRef: 'custody:btc_a3kf',
   },
   {
     id: 'src_usdt_001',
@@ -79,6 +94,9 @@ export const MOCK_SOURCES: PaymentSource[] = [
     rawCurrency: 'USDT',
     isDefault: false,
     lastSynced: new Date(),
+    priorityWeight: 40,
+    reliability: 0.98,
+    providerRef: 'custody:usdt_trc20',
   },
 ];
 

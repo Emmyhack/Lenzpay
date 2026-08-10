@@ -14,10 +14,22 @@ export default function SplitScreen() {
   const amountNGN = usePaymentStore((s) => s.amountNGN);
   const setSplitAllocations = usePaymentStore((s) => s.setSplitAllocations);
 
+  const setPlan = usePaymentStore((s) => s.setPlan);
+  const storedPlan = usePaymentStore((s) => s.plan);
+
   const result = usePaymentLogic(amountNGN, sources);
-  const allocations = result.splitAllocations ?? [];
+  // Prefer the plan already committed on the source screen — re-planning here
+  // could quote a different rate than the one the user was shown.
+  const plan = storedPlan ?? result.plan;
+  const allocations =
+    plan?.legs.map((leg) => ({
+      source: leg.source,
+      amount: leg.amountInSettlementCurrency,
+    })) ?? [];
 
   const handleConfirm = () => {
+    if (!plan) return;
+    setPlan(plan);
     setSplitAllocations(allocations);
     router.push('/(consumer)/scan/confirm');
   };

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { BiometricGate } from '@/components/auth/BiometricGate';
 import { PINPad } from '@/components/auth/PINPad';
+import { PlanDisclosure } from '@/components/payment/PlanDisclosure';
 import { usePIN } from '@/hooks/usePIN';
 import { usePaymentStore } from '@/store/payment';
 
@@ -17,6 +18,8 @@ export default function ConfirmScreen() {
   const { verifyPIN } = usePIN();
   const amountNGN = usePaymentStore((s) => s.amountNGN);
   const merchant = usePaymentStore((s) => s.merchant);
+  const payee = usePaymentStore((s) => s.payee);
+  const plan = usePaymentStore((s) => s.plan);
   const advance = usePaymentStore((s) => s.advance);
 
   const [pin, setPin] = useState('');
@@ -61,8 +64,12 @@ export default function ConfirmScreen() {
     <View style={[styles.wrap, { paddingTop: insets.top + Spacing.xxxl }]}>
       <View style={styles.summary}>
         <Text style={styles.amount}>₦{amountNGN.toLocaleString()}</Text>
-        <Text style={styles.merchant}>to {merchant?.name ?? 'merchant'}</Text>
+        <Text style={styles.merchant}>to {payee?.displayName ?? merchant?.name ?? 'merchant'}</Text>
       </View>
+
+      {/* §5.5: the rate and fee are always shown before the final confirm,
+          never silently applied. */}
+      {plan ? <PlanDisclosure plan={plan} /> : null}
 
       {lockedOut ? (
         <View style={styles.lockout}>
