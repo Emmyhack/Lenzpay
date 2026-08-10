@@ -6,6 +6,7 @@ import { SpinningRing } from '@/components/shared/SpinningRing';
 import { usePaymentStore } from '@/store/payment';
 import { useRewardsStore } from '@/store/rewards';
 import { initiatePayment } from '@/services/payments';
+import { MOCK_USER } from '@/mock/data';
 
 export default function ProcessingScreen() {
   const router = useRouter();
@@ -13,9 +14,6 @@ export default function ProcessingScreen() {
   const merchant = usePaymentStore((s) => s.merchant);
   const mode = usePaymentStore((s) => s.mode);
   const selectedSource = usePaymentStore((s) => s.selectedSource);
-  const splitAllocations = usePaymentStore((s) => s.splitAllocations);
-  const succeed = usePaymentStore((s) => s.succeed);
-  const fail = usePaymentStore((s) => s.fail);
   const addPoints = useRewardsStore((s) => s.addPoints);
 
   const started = useRef(false);
@@ -25,27 +23,45 @@ export default function ProcessingScreen() {
     started.current = true;
 
     (async () => {
+      // Read straight from the store rather than from props: this effect runs
+      // exactly once, and stale closure values here would mean charging the
+      // wrong accounts.
+      const { payee, plan, attemptNonce, succeed, fail } = usePaymentStore.getState();
+
+      if (!payee || !plan) {
+        fail('This payment expired before it could be sent. Please start again.');
+        router.replace('/(consumer)/scan/failed');
+        return;
+      }
+
       const result = await initiatePayment({
-        merchantId: merchant?.id ?? 'manual',
-        amountNGN,
+        payee,
+        plan,
         mode: mode ?? 'auto',
-        sourceId: selectedSource?.id,
-        splitAllocations: splitAllocations ?? undefined,
+        userId: MOCK_USER.id,
+        attemptNonce,
+        merchantCategory: merchant?.category,
       });
 
-      if (result.success && result.transaction) {
+      if (result.success && result.transaction && result.execution?.ok) {
         addPoints(result.transaction.pointsEarned, result.transaction.cashbackNGN);
-        succeed(result.transaction);
+        succeed(
+          result.transaction,
+          result.execution.legs,
+          result.execution.uncollectedLegs ?? []
+        );
         router.replace('/(consumer)/scan/success');
       } else {
-        fail(result.failureReason ?? 'Payment could not be completed.');
+        fail(
+          result.failureReason ?? 'Payment could not be completed.',
+          result.needsManualReview
+        );
         router.replace('/(consumer)/scan/failed');
       }
     })();
-  }, [amountNGN, merchant, mode, selectedSource, splitAllocations, addPoints, succeed, fail, router]);
+  }, [merchant, mode, addPoints, router]);
 
-  const sourceLabel =
-    mode === 'split' ? `${splitAllocations?.length ?? 0} sources` : selectedSource?.label ?? 'your source';
+  const sourceLabel = selectedSource?.label ?? 'your sources';
 
   return (
     <View style={styles.wrap}>

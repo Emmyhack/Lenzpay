@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { updateRateFeed } from '@/services/orchestration';
 
 export interface FXRates {
   USD_NGN: number;
@@ -27,7 +28,23 @@ export function useFXRates() {
     queryFn: async () => {
       // Replace with: const { data } = await api.get('/rates');
       await new Promise((r) => setTimeout(r, 300)); // simulate network
-      return { ...MOCK_RATES, updatedAt: new Date() };
+      const rates = { ...MOCK_RATES, updatedAt: new Date() };
+
+      // Keep the orchestration engine on the same prices the UI is showing.
+      // The engine reads rates outside React, so it needs them pushed in.
+      updateRateFeed(
+        {
+          USD: rates.USD_NGN,
+          GBP: rates.GBP_NGN,
+          EUR: rates.EUR_NGN,
+          BTC: rates.BTC_NGN,
+          ETH: rates.ETH_NGN,
+          USDT: rates.USDT_NGN,
+        },
+        rates.updatedAt.getTime()
+      );
+
+      return rates;
     },
     refetchInterval: 30_000, // poll every 30 seconds
     staleTime: 25_000,

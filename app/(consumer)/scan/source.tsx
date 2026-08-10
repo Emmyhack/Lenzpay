@@ -6,10 +6,9 @@ import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { SourceList } from '@/components/payment/SourceList';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { usePaymentLogic } from '@/hooks/usePaymentLogic';
+import { describePlanFailure, usePaymentLogic } from '@/hooks/usePaymentLogic';
 import { useSourcesStore } from '@/store/sources';
 import { usePaymentStore } from '@/store/payment';
-import type { PaymentMode } from '@/types/payment';
 
 export default function SourceScreen() {
   const router = useRouter();
@@ -17,35 +16,45 @@ export default function SourceScreen() {
   const amountNGN = usePaymentStore((s) => s.amountNGN);
   const selectSource = usePaymentStore((s) => s.selectSource);
   const setMode = usePaymentStore((s) => s.setMode);
+  const setPlan = usePaymentStore((s) => s.setPlan);
 
   const [uiMode, setUiMode] = useState<'auto' | 'manual'>('auto');
   const [manualSelectedId, setManualSelectedId] = useState<string | undefined>();
 
-  const result = usePaymentLogic(amountNGN, sources);
+  // In Manual mode the engine re-plans around the user's pick, so the FX rate
+  // and fees shown on the confirm screen match the source they actually chose.
+  const result = usePaymentLogic(amountNGN, sources, {
+    preferredSourceId: uiMode === 'manual' ? manualSelectedId : undefined,
+  });
 
   const manualSource = sources.find((s) => s.id === manualSelectedId);
-  const canPay = uiMode === 'auto' ? result.isCoverable : !!manualSource;
+  const canPay = uiMode === 'auto' ? result.isCoverable : !!manualSource && result.isCoverable;
 
   const pointsPreview = useMemo(() => Math.round(amountNGN * 0.005), [amountNGN]);
+  const failureMessage = describePlanFailure(result.failureReason, result.deficit);
 
   const handlePay = () => {
-    if (uiMode === 'auto') {
-      if (result.mode === 'auto' && result.autoSelected) {
-        selectSource(result.autoSelected);
-        setMode('auto' as PaymentMode);
-        router.push('/(consumer)/scan/confirm');
-      } else if (result.mode === 'split' && result.isCoverable) {
-        setMode('split');
-        router.push('/(consumer)/scan/split');
-      }
-    } else if (manualSource) {
+    if (!result.plan) return;
+    setPlan(result.plan);
+
+    if (uiMode === 'manual' && manualSource) {
       selectSource(manualSource);
       setMode('manual');
       router.push('/(consumer)/scan/confirm');
+      return;
+    }
+
+    if (result.plan.kind === 'single_source') {
+      selectSource(result.plan.legs[0].source);
+      setMode('auto');
+      router.push('/(consumer)/scan/confirm');
+    } else {
+      setMode('split');
+      router.push('/(consumer)/scan/split');
     }
   };
 
-  const showSplitNotice = uiMode === 'auto' && result.mode === 'split' && result.isCoverable;
+  const showSplitNotice = uiMode === 'auto' && result.plan?.kind === 'waterfall';
 
   return (
     <View style={styles.wrap}>
@@ -73,17 +82,25 @@ export default function SourceScreen() {
           <View style={styles.splitNotice}>
             <Icon name="shuffle" size={16} color={Colors.warning} />
             <Text style={styles.splitNoticeText}>
-              No single account covers this — we'll split it across your sources.
+              No single account covers this — we'll split it across{' '}
+              {result.plan?.legs.length ?? 0} sources.
             </Text>
           </View>
         ) : null}
 
-        {!result.isCoverable && result.deficit > 0 ? (
+        {result.totalFees > 0 ? (
+          <View style={styles.feeNotice}>
+            <Icon name="swap-horizontal" size={16} color={Colors.onSurfaceVariant} />
+            <Text style={styles.feeNoticeText}>
+              Includes ₦{Math.round(result.totalFees).toLocaleString()} conversion cost.
+            </Text>
+          </View>
+        ) : null}
+
+        {failureMessage ? (
           <View style={styles.deficitNotice}>
             <Icon name="alert-circle" size={16} color={Colors.errorDim} />
-            <Text style={styles.deficitText}>
-              You're short by ₦{result.deficit.toLocaleString()} across all sources.
-            </Text>
+            <Text style={styles.deficitText}>{failureMessage}</Text>
           </View>
         ) : null}
 
@@ -166,6 +183,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.warning,
+  },
+  feeNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  feeNoticeText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceVariant,
   },
   deficitNotice: {
     flexDirection: 'row',

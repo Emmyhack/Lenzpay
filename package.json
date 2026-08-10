@@ -51,6 +51,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.6",
     "typescript": "~6.0.3"
@@ -59,7 +60,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "node --import ./scripts/register-alias.mjs --test 'services/**/*.test.ts'",
+    "typecheck": "tsc --noEmit"
   },
   "private": true,
   "allowScripts": {

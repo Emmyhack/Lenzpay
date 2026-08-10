@@ -1,7 +1,28 @@
 import type { IconName } from '@/components/ui/Icon';
 
-export type CurrencyCode = 'NGN' | 'USD' | 'BTC' | 'USDT' | 'ETH';
+export type CurrencyCode = 'NGN' | 'USD' | 'GBP' | 'EUR' | 'BTC' | 'USDT' | 'ETH';
 export type SourceType = 'bank' | 'wallet' | 'usd' | 'crypto';
+
+/**
+ * Decimal places each currency settles to. The orchestration engine rounds
+ * every leg to its source currency's precision so a plan never asks a rail to
+ * move a fraction of a kobo (or a satoshi).
+ */
+export const CURRENCY_PRECISION: Record<CurrencyCode, number> = {
+  NGN: 2,
+  USD: 2,
+  GBP: 2,
+  EUR: 2,
+  BTC: 8,
+  ETH: 8,
+  USDT: 6,
+};
+
+export const CRYPTO_CURRENCIES: readonly CurrencyCode[] = ['BTC', 'ETH', 'USDT'];
+
+export function isCrypto(currency: CurrencyCode): boolean {
+  return CRYPTO_CURRENCIES.includes(currency);
+}
 export type SourceStatus =
   | 'active'
   | 'insufficient'
@@ -31,7 +52,31 @@ export interface PaymentSource {
   icon?: IconName;
   iconColor?: string;
   lastSynced: Date;
+
+  // ---- Funding Orchestration Engine inputs (§5.2) ----------------------
+  /**
+   * User-set preference, 0..100. Higher wins. Defaults to
+   * DEFAULT_PRIORITY_WEIGHT when a source predates the orchestration engine.
+   */
+  priorityWeight?: number;
+  /**
+   * "Keep buffer" rule — reserve funds rank below everything else and are
+   * only drawn on when no other combination can cover the payment.
+   */
+  isReserve?: boolean;
+  /**
+   * Rolling success rate of this source/provider, 0..1. Feeds the historical
+   * reliability term of priority_score.
+   */
+  reliability?: number;
+  /** Opaque handle for the aggregator/custody provider backing this source. */
+  providerRef?: string;
 }
+
+/** Applied when a source carries no explicit user preference. */
+export const DEFAULT_PRIORITY_WEIGHT = 50;
+/** Assumed success rate for a source with no recorded history. */
+export const DEFAULT_RELIABILITY = 0.97;
 
 export interface SplitAllocation {
   source: PaymentSource;

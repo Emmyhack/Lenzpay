@@ -12,6 +12,9 @@ import { CryptoLogo, hasCryptoLogo } from '@/components/ui/CryptoLogo';
 import { BankLogo } from '@/components/ui/BankLogo';
 import { TransactionRow } from '@/components/shared/TransactionRow';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ToggleRow } from '@/components/shared/ToggleRow';
+import { Slider } from '@/components/ui/Slider';
+import { DEFAULT_PRIORITY_WEIGHT } from '@/types/payment';
 import { useSourcesStore } from '@/store/sources';
 import { MOCK_TRANSACTIONS } from '@/mock/data';
 import { showToast } from '@/components/ui/Toast';
@@ -33,6 +36,8 @@ export default function SourceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const sources = useSourcesStore((s) => s.sources);
   const setDefault = useSourcesStore((s) => s.setDefault);
+  const setPriorityWeight = useSourcesStore((s) => s.setPriorityWeight);
+  const setReserve = useSourcesStore((s) => s.setReserve);
   const removeSource = useSourcesStore((s) => s.removeSource);
   const refreshBalances = useSourcesStore((s) => s.refreshBalances);
   const isLoading = useSourcesStore((s) => s.isLoading);
@@ -57,6 +62,8 @@ export default function SourceDetailScreen() {
       </View>
     );
   }
+
+  const priorityWeight = source.priorityWeight ?? DEFAULT_PRIORITY_WEIGHT;
 
   const handleRemove = () => {
     removeSource(source.id);
@@ -119,6 +126,35 @@ export default function SourceDetailScreen() {
             </Text>
           </View>
           <UsageBar ratio={source.balance > 0 ? spentThisMonth / source.balance : 0} />
+        </View>
+
+        {/* §5.2 — the two ranking inputs the user owns. Everything else in
+            priority_score (currency proximity, conversion cost, reliability)
+            is derived; these two are theirs to set. */}
+        <View style={styles.prefsSection}>
+          <SectionTitle title="Funding Preferences" />
+
+          <View style={styles.prefRow}>
+            <View style={styles.prefLabelRow}>
+              <Text style={styles.prefTitle}>Priority</Text>
+              <Text style={styles.prefValue}>{priorityWeight}</Text>
+            </View>
+            <Text style={styles.prefSubtitle}>
+              How strongly Smart Funding prefers this account over your others.
+            </Text>
+            <Slider
+              value={priorityWeight / 100}
+              onChange={(value) => setPriorityWeight(source.id, value * 100)}
+            />
+          </View>
+
+          <ToggleRow
+            title="Keep as reserve"
+            subtitle="Only use this account when nothing else can cover the payment."
+            value={source.isReserve ?? false}
+            onValueChange={(value) => setReserve(source.id, value)}
+            last
+          />
         </View>
 
         <View style={styles.section}>
@@ -226,6 +262,35 @@ const styles = StyleSheet.create({
   section: {
     marginTop: Spacing.xxl,
     marginHorizontal: -Spacing.xl,
+  },
+  prefsSection: {
+    marginTop: Spacing.xxl,
+  },
+  prefRow: {
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.outlineVariant,
+    gap: Spacing.sm,
+  },
+  prefLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  prefTitle: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodyMd.fontSize,
+    color: Colors.onSurface,
+  },
+  prefValue: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: Typography.bodyMd.fontSize,
+    color: Colors.primary,
+  },
+  prefSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceVariant,
   },
   removeRow: {
     alignItems: 'center',
