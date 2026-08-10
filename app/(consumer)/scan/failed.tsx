@@ -14,7 +14,9 @@ export default function FailedScreen() {
   const amountNGN = usePaymentStore((s) => s.amountNGN);
   const merchant = usePaymentStore((s) => s.merchant);
   const failureReason = usePaymentStore((s) => s.failureReason);
+  const needsManualReview = usePaymentStore((s) => s.needsManualReview);
   const reset = usePaymentStore((s) => s.reset);
+  const retry = usePaymentStore((s) => s.retry);
 
   const [expanded, setExpanded] = useState(false);
   const ringScale = useSharedValue(0);
@@ -26,6 +28,9 @@ export default function FailedScreen() {
   const ringStyle = useAnimatedStyle(() => ({ transform: [{ scale: ringScale.value }] }));
 
   const handleTryAnother = () => {
+    // New attempt nonce, so the engine treats this as a fresh payment rather
+    // than replaying the failed one's idempotency key.
+    retry();
     router.replace('/(consumer)/scan/source');
   };
 
@@ -53,14 +58,26 @@ export default function FailedScreen() {
       <Text style={styles.title}>Payment Failed</Text>
       <Text style={styles.reason}>{failureReason ?? `We couldn't send ₦${amountNGN.toLocaleString()} to ${merchant?.name ?? 'this merchant'}.`}</Text>
 
+      {/* Never claim "no funds were moved" when that isn't true (§5.7). */}
+      {needsManualReview ? (
+        <View style={styles.reviewBanner}>
+          <Icon name="alert-circle" size={16} color={Colors.warning} />
+          <Text style={styles.reviewText}>
+            Part of this payment could not be automatically returned. Our team is reversing it —
+            you'll see the funds back shortly. Reference this screen if you contact support.
+          </Text>
+        </View>
+      ) : null}
+
       <TouchableOpacity onPress={() => setExpanded((v) => !v)} style={styles.accordionHeader}>
         <Text style={styles.accordionTitle}>What happened?</Text>
         <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={Colors.primary} />
       </TouchableOpacity>
       {expanded ? (
         <Text style={styles.accordionBody}>
-          Your source declined the transaction, or a network timeout interrupted it before completion. No funds
-          were moved. You can retry with the same source or choose a different one.
+          {needsManualReview
+            ? 'One of your accounts was debited before a later step failed. We have released every hold we could and are reversing the rest manually.'
+            : 'Lenz Pay places a hold on every account before moving any money, so a failure at this stage leaves your balances untouched. You can retry with the same sources or choose different ones.'}
         </Text>
       ) : null}
 
@@ -104,6 +121,21 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
     textAlign: 'center',
     marginTop: Spacing.sm,
+  },
+  reviewBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: Colors.warning + '18',
+    borderRadius: 12,
+    padding: Spacing.lg,
+    marginTop: Spacing.xl,
+  },
+  reviewText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.warning,
   },
   accordionHeader: {
     flexDirection: 'row',
