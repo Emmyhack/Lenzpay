@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { Payee } from '@/types/orchestration';
 import {
+  buildPaymentQR,
   decodeQRPayload,
   isValidLenzTag,
   isValidNUBAN,
@@ -240,4 +241,117 @@ test('a raw crypto address resolves but is never marked verified', async () => {
 test('a truncated crypto address is rejected', async () => {
   const result = await resolvePayee({ type: 'crypto_address', value: 'TQn9Y2kh' }, directory());
   assert.equal(result.ok, false);
+});
+
+// ---------------------------------------------------------------------------
+// Fixture integrity
+// ---------------------------------------------------------------------------
+
+test('every directory payee has a checksum-valid account number', async () => {
+  const { MOCK_PAYEES } = await import('@/mock/payees');
+
+  for (const entry of MOCK_PAYEES) {
+    if (!entry.accountNumber || !entry.bankCode) continue;
+    assert.ok(
+      isValidNUBAN(entry.accountNumber, entry.bankCode),
+      `${entry.displayName}: ${entry.accountNumber} fails its own NUBAN check for bank ${entry.bankCode} — manual entry would reject it before the lookup`
+    );
+  }
+});
+
+test('the directory resolves its own entries end to end', async () => {
+  const { MOCK_PAYEES, mockPayeeDirectory } = await import('@/mock/payees');
+  const bolt = MOCK_PAYEES[0];
+
+  const byAccount = await resolvePayee(
+    { type: 'account_number', value: bolt.accountNumber!, bankCode: bolt.bankCode! },
+    mockPayeeDirectory
+  );
+  assert.equal(byAccount.ok, true);
+  if (!byAccount.ok) return;
+  assert.equal(byAccount.payee.displayName, bolt.displayName);
+
+  const byTag = await resolvePayee(
+    { type: 'lenz_tag', value: bolt.lenzTag! },
+    mockPayeeDirectory
+  );
+  assert.equal(byTag.ok, true);
+
+  const byQr = await resolvePayee(
+    { type: 'qr', value: `lenzpay://pay?p=${bolt.id}&a=2800` },
+    mockPayeeDirectory
+  );
+  assert.equal(byQr.ok, true);
+  if (!byQr.ok) return;
+  assert.equal(byQr.fixedAmount, 2_800);
+});
+
+// ---------------------------------------------------------------------------
+// Generator / parser round-trip
+// ---------------------------------------------------------------------------
+
+test('every QR this app generates is one this app can read back', () => {
+  const cases = [
+    { payeeId: 'mch_001' },
+    { payeeId: 'mch_001', displayName: 'Emeka\u2019s Kitchen', currency: 'NGN' as const },
+    { payeeId: 'mkt_bolt_001', amount: 2_800, currency: 'NGN' as const },
+    { payeeId: 'weird id/with?chars&', displayName: 'A & B — Ltd' },
+    { payeeId: 'p1', accountNumber: '0123456784', bankCode: '044' },
+  ];
+
+  for (const input of cases) {
+    const payload = buildPaymentQR(input);
+    const decoded = decodeQRPayload(payload);
+
+    assert.equal(decoded.ok, true, `failed to decode: ${payload}`);
+    if (!decoded.ok) continue;
+
+    assert.equal(decoded.payload.payeeId, input.payeeId, `payee id lost in ${payload}`);
+    if ('displayName' in input) assert.equal(decoded.payload.displayName, input.displayName);
+    if ('amount' in input) assert.equal(decoded.payload.amount, input.amount);
+    if ('accountNumber' in input) assert.equal(decoded.payload.accountNumber, input.accountNumber);
+  }
+});
+
+test('an open-ended QR pins no amount', () => {
+  const decoded = decodeQRPayload(buildPaymentQR({ payeeId: 'mch_001' }));
+  assert.equal(decoded.ok, true);
+  if (!decoded.ok) return;
+  assert.equal(decoded.payload.amount, undefined);
+});
+
+test('the legacy path form still scans', () => {
+  // Printed codes outlive the format that produced them.
+  const decoded = decodeQRPayload('lenzpay://pay/mch_001');
+  assert.equal(decoded.ok, true);
+  if (!decoded.ok) return;
+  assert.equal(decoded.payload.payeeId, 'mch_001');
+});
+
+test("the consumer app can scan the merchant app's own QR", async () => {
+  const { MOCK_MERCHANT_PROFILE } = await import('@/mock/merchant');
+  const { mockPayeeDirectory } = await import('@/mock/payees');
+
+  const result = await resolvePayee(
+    { type: 'qr', value: MOCK_MERCHANT_PROFILE.qrCodeValue },
+    mockPayeeDirectory
+  );
+
+  assert.equal(result.ok, true, 'the merchant QR must resolve, or the loop is broken');
+  if (!result.ok) return;
+  assert.equal(result.payee.id, MOCK_MERCHANT_PROFILE.id);
+  assert.equal(result.payee.isVerified, true);
+});
+
+test('a merchant-set amount survives all the way to a resolved payee', async () => {
+  const { mockPayeeDirectory } = await import('@/mock/payees');
+
+  const result = await resolvePayee(
+    { type: 'qr', value: buildPaymentQR({ payeeId: 'mch_001', amount: 7_500 }) },
+    mockPayeeDirectory
+  );
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.fixedAmount, 7_500);
 });

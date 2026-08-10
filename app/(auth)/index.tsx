@@ -1,71 +1,76 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withSequence,
   withTiming,
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { Colors } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
+import { LenzPayLogo } from '@/components/ui/LenzPayLogo';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const SPLASH_DURATION_MS = 1800;
 
-function PulsingDot({ delay }: { delay: number }) {
-  const opacity = useSharedValue(0.3);
-
-  useEffect(() => {
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.3, { duration: 500, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        false
-      )
-    );
-  }, [delay, opacity]);
-
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  return <Animated.View style={[styles.dot, style]} />;
-}
-
+/**
+ * Launch screen.
+ *
+ * The logo settles in, and a single determinate bar shows the wait ending.
+ * The previous version drew a 420×420 `borderRadius: 210` *linear* gradient —
+ * a linear ramp clipped to a circle reads as a flat disc with a visible edge,
+ * not the ambient bloom it was meant to be. The bloom now comes from a real
+ * radial gradient inside the logo component; the disc is gone.
+ */
 export default function SplashScreen() {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
+
+  const logoOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(0.94);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
+    if (reduceMotion) {
+      logoOpacity.value = 1;
+      logoScale.value = 1;
+      progress.value = 1;
+    } else {
+      logoOpacity.value = withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) });
+      logoScale.value = withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) });
+      progress.value = withDelay(
+        160,
+        withTiming(1, {
+          duration: SPLASH_DURATION_MS - 360,
+          easing: Easing.inOut(Easing.cubic),
+        })
+      );
+    }
+
     const timer = setTimeout(() => {
       router.replace('/(auth)/welcome');
     }, SPLASH_DURATION_MS);
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [router, reduceMotion, logoOpacity, logoScale, progress]);
+
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [{ scale: logoScale.value }],
+  }));
+
+  const barStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
 
   return (
     <View style={styles.wrap}>
-      {/* Faked radial glow: a soft gradient circle sitting behind the wordmark. */}
-      <LinearGradient
-        colors={['rgba(52,254,160,0.16)', 'rgba(52,254,160,0)']}
-        style={styles.glow}
-        start={{ x: 0.5, y: 0.5 }}
-        end={{ x: 1, y: 1 }}
-      />
+      <Animated.View style={logoStyle}>
+        <LenzPayLogo size="xl" glow />
+      </Animated.View>
 
-      <View style={styles.wordmarkRow}>
-        <Text style={styles.lenz}>Lenz</Text>
-        <Text style={styles.pay}>Pay</Text>
-      </View>
-
-      <View style={styles.dotsRow}>
-        <PulsingDot delay={0} />
-        <PulsingDot delay={200} />
-        <PulsingDot delay={400} />
+      <View style={styles.track}>
+        <Animated.View style={[styles.fill, barStyle]} />
       </View>
     </View>
   );
@@ -78,34 +83,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glow: {
+  track: {
     position: 'absolute',
-    width: 420,
-    height: 420,
-    borderRadius: 210,
+    bottom: 96,
+    width: 132,
+    height: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.outlineVariant,
+    overflow: 'hidden',
   },
-  wordmarkRow: {
-    flexDirection: 'row',
-  },
-  lenz: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 52,
-    color: Colors.onSurface,
-  },
-  pay: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 52,
-    color: Colors.primary,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 32,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  fill: {
+    height: '100%',
+    borderRadius: Radius.pill,
     backgroundColor: Colors.primary,
   },
 });

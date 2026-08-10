@@ -43,6 +43,45 @@ export type DecodeResult =
   | { ok: true; payload: DecodedQR }
   | { ok: false; reason: string };
 
+export const QR_SCHEME = 'lenzpay://pay';
+
+export interface BuildQROptions {
+  payeeId: string;
+  displayName?: string;
+  /** Pin a price. Omit for open-ended payees where the payer types the amount. */
+  amount?: number;
+  currency?: CurrencyCode;
+  accountNumber?: string;
+  bankCode?: string;
+  cryptoAddress?: string;
+}
+
+/**
+ * Canonical QR payload generator — the inverse of `decodeQRPayload`.
+ *
+ * Every screen that renders a Lenz QR must go through this. The merchant app
+ * previously hand-wrote `lenzpay://pay/<id>` while the parser only accepted the
+ * query form, so the app could not scan its own codes. Pairing the two here,
+ * with a round-trip test, is what stops that drifting apart again.
+ */
+export function buildPaymentQR(options: BuildQROptions): string {
+  const params: string[] = [`p=${encodeURIComponent(options.payeeId)}`];
+
+  const append = (key: string, value: string | number | undefined) => {
+    if (value === undefined || value === '') return;
+    params.push(`${key}=${encodeURIComponent(String(value))}`);
+  };
+
+  append('n', options.displayName);
+  append('a', options.amount && options.amount > 0 ? options.amount : undefined);
+  append('c', options.currency);
+  append('acct', options.accountNumber);
+  append('bank', options.bankCode);
+  append('addr', options.cryptoAddress);
+
+  return `${QR_SCHEME}?${params.join('&')}`;
+}
+
 export function decodeQRPayload(raw: string): DecodeResult {
   const trimmed = raw.trim();
   if (!trimmed) return { ok: false, reason: 'Empty QR code' };
@@ -105,7 +144,16 @@ function parseQuery(query: string): Map<string, string> {
 
 function decodeUriPayload(raw: string): DecodeResult {
   const queryStart = raw.indexOf('?');
-  if (queryStart === -1) return { ok: false, reason: 'QR code is missing payment details' };
+
+  // Path form — `lenzpay://pay/<payeeId>`. Carries no amount or destination,
+  // just an identity to look up. Accepted because printed codes outlive the
+  // format that produced them; new codes come from `buildPaymentQR`.
+  if (queryStart === -1) {
+    const path = raw.slice('lenzpay://'.length).replace(/^pay\/?/, '').replace(/\/+$/, '');
+    const payeeId = decodeURIComponent(path.split('/')[0] ?? '');
+    if (!payeeId) return { ok: false, reason: 'QR code is missing a payee reference' };
+    return { ok: true, payload: { payeeId } };
+  }
 
   const params = parseQuery(raw.slice(queryStart + 1));
   const payeeId = params.get('p');

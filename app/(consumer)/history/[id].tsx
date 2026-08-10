@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Share, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Share,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -7,16 +15,38 @@ import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import { BankLogo } from '@/components/ui/BankLogo';
+import { CryptoLogo, hasCryptoLogo } from '@/components/ui/CryptoLogo';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { fetchTransactionById } from '@/services/payments';
 import { showToast } from '@/components/ui/Toast';
 import { CATEGORY_ICON } from '@/mock/data';
+import type { FundingLeg } from '@/types/orchestration';
 import type { Transaction } from '@/types/payment';
 
 function formatDateTime(date: Date) {
-  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return date.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
+
+const STATUS: Record<Transaction['status'], { label: string; tone: string; icon: IconName }> = {
+  completed: { label: 'Settled', tone: Colors.success, icon: 'checkmark-circle' },
+  pending: { label: 'Pending', tone: Colors.warning, icon: 'time' },
+  failed: { label: 'Failed', tone: Colors.error, icon: 'close-circle' },
+};
+
+const MODE_LABEL: Record<Transaction['mode'], string> = {
+  auto: 'Auto',
+  manual: 'Manual',
+  split: 'Smart Split',
+};
 
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,7 +57,18 @@ export default function TransactionDetailScreen() {
     fetchTransactionById(id).then((t) => setTransaction(t ?? null));
   }, [id]);
 
-  if (transaction === undefined) return <View style={styles.wrap} />;
+  if (transaction === undefined) {
+    return (
+      <View style={styles.wrap}>
+        <ScreenHeader title="Transaction" />
+        <View style={styles.loading}>
+          <Skeleton width={64} height={64} radius={32} />
+          <Skeleton width={200} height={40} />
+          <Skeleton height={180} radius={Radius.lg} />
+        </View>
+      </View>
+    );
+  }
 
   if (!transaction) {
     return (
@@ -39,6 +80,10 @@ export default function TransactionDetailScreen() {
   }
 
   const isCredit = transaction.direction === 'credit';
+  const status = STATUS[transaction.status];
+  const legs = transaction.legs ?? [];
+  const fees = transaction.totalFees ?? 0;
+  const pending = transaction.pendingCollection ?? [];
 
   const handleCopyRef = async () => {
     await Clipboard.setStringAsync(transaction.txnRef);
@@ -47,70 +92,196 @@ export default function TransactionDetailScreen() {
   };
 
   const handleShare = () => {
+    const breakdown = legs.length > 1 ? `\n${legs.map(describeLeg).join('\n')}` : '';
     Share.share({
-      message: `LenzPay receipt\n₦${transaction.amount.toLocaleString()} · ${transaction.merchantName}\nRef: ${transaction.txnRef}\n${formatDateTime(transaction.timestamp)}`,
+      message: `LenzPay receipt\n₦${transaction.amount.toLocaleString()} · ${transaction.merchantName}${breakdown}\nRef: ${transaction.txnRef}\n${formatDateTime(transaction.timestamp)}`,
     });
-  };
-
-  const handleDispute = () => {
-    router.push('/(consumer)/profile/support');
   };
 
   return (
     <View style={styles.wrap}>
       <ScreenHeader title="Transaction" />
 
-      <View style={styles.body}>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.iconCircle}>
-          <Icon name={CATEGORY_ICON[transaction.category] ?? CATEGORY_ICON.other} size={28} color={Colors.onSurface} />
+          <Icon
+            name={CATEGORY_ICON[transaction.category] ?? CATEGORY_ICON.other}
+            size={28}
+            color={Colors.onSurface}
+          />
         </View>
 
         <Text style={[styles.amount, { color: isCredit ? Colors.success : Colors.onSurface }]}>
-          {isCredit ? '+' : '-'}₦{transaction.amount.toLocaleString()}
+          {isCredit ? '+' : '−'}₦{transaction.amount.toLocaleString()}
         </Text>
+        <Text style={styles.merchant}>{transaction.merchantName}</Text>
+
+        <View style={[styles.statusPill, { backgroundColor: status.tone + '1f' }]}>
+          <Icon name={status.icon} size={13} color={status.tone} />
+          <Text style={[styles.statusText, { color: status.tone }]}>{status.label}</Text>
+        </View>
+
         <Text style={styles.datetime}>{formatDateTime(transaction.timestamp)}</Text>
 
-        <Card variant="containerHigh" style={styles.receipt}>
-          <ReceiptRow label="Merchant" value={transaction.merchantName} />
-          <ReceiptRow label="Source" value={transaction.sourceLabel} />
-          <ReceiptRow label="Mode" value={transaction.mode === 'split' ? 'Smart Split' : transaction.mode === 'auto' ? 'Auto' : 'Manual'} />
-          {transaction.fxRate ? <ReceiptRow label="FX Rate" value={transaction.fxRate} /> : null}
-          <ReceiptRow label="Cashback" value={`₦${transaction.cashbackNGN.toLocaleString()}`} />
-          <ReceiptRow label="Status" value={transaction.status} />
-          <TouchableOpacity onPress={handleCopyRef} style={[styles.receiptRow, styles.receiptRowLast]}>
-            <Text style={styles.receiptLabel}>Txn ID</Text>
-            <Text style={styles.receiptValueMono}>{transaction.txnRef}</Text>
+        {/* §5.4 — a split payment is only auditable if the receipt says which
+            account paid what, at what rate, for what fee. */}
+        {legs.length > 0 ? (
+          <Card variant="containerLow" style={styles.section}>
+            <View style={styles.sectionHeadRow}>
+              <Text style={styles.sectionTitle}>Funded by</Text>
+              {legs.length > 1 ? (
+                <Text style={styles.sectionMeta}>{legs.length} sources</Text>
+              ) : null}
+            </View>
+
+            {legs.map((leg, index) => (
+              <LegRow key={leg.id} leg={leg} divided={index > 0} />
+            ))}
+          </Card>
+        ) : null}
+
+        {pending.length > 0 ? (
+          <View style={styles.pendingBanner}>
+            <Icon name="time-outline" size={15} color={Colors.onSurfaceVariant} />
+            <Text style={styles.pendingText}>
+              {pending.map((leg) => leg.source.label).join(' and ')}{' '}
+              {pending.length > 1 ? 'are' : 'is'} still being debited.{' '}
+              {transaction.merchantName} already has the full amount.
+            </Text>
+          </View>
+        ) : null}
+
+        <Card variant="containerLow" style={styles.section}>
+          <Text style={styles.sectionTitle}>Breakdown</Text>
+          <Row label="Amount" value={`₦${transaction.amount.toLocaleString()}`} />
+          <Row
+            label="Conversion cost"
+            value={fees > 0 ? `₦${Math.round(fees).toLocaleString()}` : 'None'}
+            muted={fees === 0}
+          />
+          <Row
+            label="Total debited"
+            value={`₦${Math.round(transaction.amount + fees).toLocaleString()}`}
+            emphasis
+          />
+        </Card>
+
+        <Card variant="containerLow" style={styles.section}>
+          <Text style={styles.sectionTitle}>Details</Text>
+          <Row label="Funding mode" value={MODE_LABEL[transaction.mode]} />
+          <Row
+            label="Rewards"
+            value={`${transaction.pointsEarned} pts · ₦${transaction.cashbackNGN.toLocaleString()} back`}
+          />
+          <TouchableOpacity onPress={handleCopyRef} style={styles.row} accessibilityRole="button">
+            <Text style={styles.rowLabel}>Reference</Text>
+            <View style={styles.refRow}>
+              <Text style={styles.refValue}>{transaction.txnRef}</Text>
+              <Icon name="copy-outline" size={13} color={Colors.primary} />
+            </View>
           </TouchableOpacity>
         </Card>
 
         <View style={styles.actions}>
           <Button label="Share Receipt" onPress={handleShare} />
-          <Button label="Dispute Transaction" variant="tertiary" onPress={handleDispute} />
+          <Button
+            label="Report a problem"
+            variant="tertiary"
+            onPress={() => router.push('/(consumer)/profile/support')}
+          />
         </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * One funding leg. For a converted leg this is the only place the user can see
+ * what left their account versus what reached the payee, and the rate between.
+ */
+function LegRow({ leg, divided }: { leg: FundingLeg; divided: boolean }) {
+  const converted = leg.sourceCurrency !== leg.settlementCurrency;
+  const source = leg.source;
+
+  return (
+    <View style={[styles.legRow, divided && styles.legDivided]}>
+      <View style={styles.legLogo}>
+        {hasCryptoLogo(source.rawCurrency) ? (
+          <CryptoLogo code={source.rawCurrency} size={30} />
+        ) : source.bankCode ? (
+          <BankLogo code={source.bankCode} name={source.label} size={30} />
+        ) : (
+          <Text style={styles.legFlag}>{source.flag ?? '💳'}</Text>
+        )}
+      </View>
+
+      <View style={styles.legInfo}>
+        <Text style={styles.legLabel} numberOfLines={1}>
+          {source.label}
+        </Text>
+        <Text style={styles.legMeta} numberOfLines={1}>
+          {converted
+            ? `${leg.amountInSourceCurrency} ${leg.sourceCurrency} · 1 ${leg.sourceCurrency} = ₦${leg.quote.rate.toLocaleString()}`
+            : source.accountMask}
+        </Text>
+      </View>
+
+      <View style={styles.legRight}>
+        <Text style={styles.legAmount}>
+          ₦{leg.amountInSettlementCurrency.toLocaleString()}
+        </Text>
+        {leg.feeInSettlementCurrency > 0 ? (
+          <Text style={styles.legFee}>
+            fee ₦{Math.round(leg.feeInSettlementCurrency).toLocaleString()}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
 }
 
-function ReceiptRow({ label, value }: { label: string; value: string }) {
+function describeLeg(leg: FundingLeg) {
+  const converted = leg.sourceCurrency !== leg.settlementCurrency;
+  const base = `  ₦${leg.amountInSettlementCurrency.toLocaleString()} from ${leg.source.label}`;
+  return converted ? `${base} (${leg.amountInSourceCurrency} ${leg.sourceCurrency})` : base;
+}
+
+function Row({
+  label,
+  value,
+  emphasis = false,
+  muted = false,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+  muted?: boolean;
+}) {
   return (
-    <View style={styles.receiptRow}>
-      <Text style={styles.receiptLabel}>{label}</Text>
-      <Text style={styles.receiptValue}>{value}</Text>
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text
+        style={[
+          styles.rowValue,
+          emphasis && styles.rowValueEmphasis,
+          muted && styles.rowValueMuted,
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  wrap: { flex: 1, backgroundColor: Colors.background },
+  loading: { paddingHorizontal: Spacing.xl, gap: Spacing.xl, alignItems: 'center' },
   body: {
-    flex: 1,
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
   },
+
   iconCircle: {
     width: 64,
     height: 64,
@@ -123,47 +294,143 @@ const styles = StyleSheet.create({
   amount: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: Typography.displayMd.fontSize,
+    letterSpacing: Typography.displayMd.letterSpacing,
     marginTop: Spacing.lg,
   },
-  datetime: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: Typography.labelSm.fontSize,
-    color: Colors.onSurfaceMuted,
+  merchant: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodyMd.fontSize,
+    color: Colors.onSurfaceVariant,
     marginTop: Spacing.xs,
   },
-  receipt: {
-    width: '100%',
-    marginTop: Spacing.xxl,
-  },
-  receiptRow: {
+  statusPill: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 5,
+    marginTop: Spacing.md,
+  },
+  statusText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  datetime: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceMuted,
+    marginTop: Spacing.sm,
+  },
+
+  section: { width: '100%', marginTop: Spacing.xl },
+  sectionHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.outlineVariant,
   },
-  receiptRowLast: {
-    borderBottomWidth: 0,
+  sectionTitle: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: Typography.titleSm.fontSize,
+    color: Colors.onSurface,
+    marginBottom: Spacing.sm,
   },
-  receiptLabel: {
+  sectionMeta: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceMuted,
+    marginBottom: Spacing.sm,
+  },
+
+  legRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  legDivided: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.outlineVariant,
+  },
+  legLogo: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legFlag: { fontSize: 18 },
+  legInfo: { flex: 1 },
+  legLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    color: Colors.onSurface,
+  },
+  legMeta: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
+    marginTop: 2,
+  },
+  legRight: { alignItems: 'flex-end' },
+  legAmount: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 14,
+    color: Colors.onSurface,
+  },
+  legFee: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: Colors.onSurfaceMuted,
+    marginTop: 2,
+  },
+
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    width: '100%',
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginTop: Spacing.lg,
+  },
+  pendingText: {
+    flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.onSurfaceVariant,
   },
-  receiptValue: {
+
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  rowLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceVariant,
+  },
+  rowValue: {
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.onSurface,
   },
-  receiptValueMono: {
+  rowValueEmphasis: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: Typography.titleSm.fontSize,
+  },
+  rowValueMuted: { color: Colors.onSurfaceMuted },
+  refRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  refValue: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     fontSize: 12,
     color: Colors.primary,
   },
+
   actions: {
     width: '100%',
     marginTop: Spacing.xxl,
     gap: Spacing.md,
-    paddingBottom: Spacing.xxl,
   },
 });

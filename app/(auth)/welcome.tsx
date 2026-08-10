@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -17,15 +17,17 @@ import Animated, {
   withDelay,
   withSpring,
   withTiming,
-  withRepeat,
   Easing,
 } from 'react-native-reanimated';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { LenzPayLogo } from '@/components/ui/LenzPayLogo';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface Slide {
   key: string;
+  eyebrow: string;
   headline: string;
   body: string;
 }
@@ -33,26 +35,56 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     key: 'any-account',
+    eyebrow: 'One identity',
     headline: 'Pay from any account',
     body: 'Bank, wallet, USD, or crypto — Lenz Pay picks the right source automatically.',
   },
   {
     key: 'smart-split',
+    eyebrow: 'Smart funding',
     headline: 'Never fall short',
     body: "If one account can't cover it, we split the payment across the ones that can.",
   },
   {
     key: 'rewards',
-    headline: 'Earn on every payment',
+    eyebrow: 'Always earning',
+    headline: 'Rewards on every payment',
     body: 'Points and cashback rack up automatically, no matter which source you pay from.',
   },
 ];
 
-function FloatInIcon({ icon, delay }: { icon: IconName; delay: number }) {
-  const translateY = useSharedValue(24);
+/**
+ * Slide artwork animates when its slide becomes *visible*, not at mount.
+ *
+ * Previously every art block started animating as soon as the list rendered,
+ * so slides 2 and 3 played out off-screen and were already static by the time
+ * you swiped to them. Each block now takes an `active` flag and resets when it
+ * scrolls away, so the motion actually lands.
+ */
+interface ArtProps {
+  active: boolean;
+  reduceMotion: boolean;
+}
+
+function FloatInIcon({ icon, delay, active, reduceMotion }: ArtProps & { icon: IconName; delay: number }) {
+  const translateY = useSharedValue(20);
   const opacity = useSharedValue(0);
-  translateY.value = withDelay(delay, withSpring(0, { damping: 12 }));
-  opacity.value = withDelay(delay, withTiming(1, { duration: 400 }));
+
+  useEffect(() => {
+    if (reduceMotion) {
+      translateY.value = 0;
+      opacity.value = active ? 1 : 0;
+      return;
+    }
+    if (active) {
+      translateY.value = withDelay(delay, withSpring(0, { damping: 13 }));
+      opacity.value = withDelay(delay, withTiming(1, { duration: 380 }));
+    } else {
+      translateY.value = 20;
+      opacity.value = 0;
+    }
+  }, [active, delay, reduceMotion, translateY, opacity]);
+
   const style = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
@@ -60,66 +92,112 @@ function FloatInIcon({ icon, delay }: { icon: IconName; delay: number }) {
 
   return (
     <Animated.View style={[artStyles.iconBubble, style]}>
-      <Icon name={icon} size={24} color={Colors.onSurface} />
+      <Icon name={icon} size={22} color={Colors.onSurface} />
     </Animated.View>
   );
 }
 
-function SourceIconsArt() {
+function SourceIconsArt({ active, reduceMotion }: ArtProps) {
   return (
-    <View style={artStyles.row}>
+    <View style={artStyles.column}>
       <View style={artStyles.iconsRow}>
-        <FloatInIcon icon="business-outline" delay={0} />
-        <FloatInIcon icon="cash" delay={150} />
-        <FloatInIcon icon="logo-bitcoin" delay={300} />
+        <FloatInIcon icon="business-outline" delay={0} active={active} reduceMotion={reduceMotion} />
+        <FloatInIcon icon="cash" delay={110} active={active} reduceMotion={reduceMotion} />
+        <FloatInIcon icon="logo-bitcoin" delay={220} active={active} reduceMotion={reduceMotion} />
       </View>
-      <Icon name="arrow-down" size={20} color={Colors.onSurfaceMuted} style={artStyles.arrow} />
+      <Icon name="arrow-down" size={18} color={Colors.onSurfaceMuted} style={artStyles.arrow} />
       <View style={artStyles.targetBubble}>
-        <Icon name="checkmark" size={24} color={Colors.primary} />
+        <Icon name="checkmark" size={22} color={Colors.primary} />
       </View>
     </View>
   );
 }
 
-function SplitBar({ targetPercent, delay, color }: { targetPercent: number; delay: number; color: string }) {
+function SplitBar({
+  targetPercent,
+  delay,
+  color,
+  label,
+  active,
+  reduceMotion,
+}: ArtProps & { targetPercent: number; delay: number; color: string; label: string }) {
   const width = useSharedValue(0);
-  width.value = withDelay(delay, withTiming(targetPercent, { duration: 700, easing: Easing.out(Easing.cubic) }));
+
+  useEffect(() => {
+    if (reduceMotion) {
+      width.value = active ? targetPercent : 0;
+      return;
+    }
+    width.value = active
+      ? withDelay(delay, withTiming(targetPercent, { duration: 620, easing: Easing.out(Easing.cubic) }))
+      : 0;
+  }, [active, delay, targetPercent, reduceMotion, width]);
+
   const style = useAnimatedStyle(() => ({ width: `${width.value}%` }));
 
   return (
-    <View style={artStyles.barTrack}>
-      <Animated.View style={[artStyles.barFill, style, { backgroundColor: color }]} />
+    <View style={artStyles.barRow}>
+      <Text style={artStyles.barLabel}>{label}</Text>
+      <View style={artStyles.barTrack}>
+        <Animated.View style={[artStyles.barFill, style, { backgroundColor: color }]} />
+      </View>
     </View>
   );
 }
 
-function SplitBarsArt() {
+function SplitBarsArt({ active, reduceMotion }: ArtProps) {
   return (
     <View style={artStyles.barsWrap}>
-      <SplitBar targetPercent={70} delay={0} color={Colors.primary} />
-      <SplitBar targetPercent={30} delay={200} color={Colors.warning} />
+      <SplitBar
+        label="GTBank"
+        targetPercent={68}
+        delay={0}
+        color={Colors.primary}
+        active={active}
+        reduceMotion={reduceMotion}
+      />
+      <SplitBar
+        label="USD"
+        targetPercent={32}
+        delay={160}
+        color={Colors.usd}
+        active={active}
+        reduceMotion={reduceMotion}
+      />
+      <Text style={artStyles.barCaption}>₦4,500 across 2 sources</Text>
     </View>
   );
 }
 
-function PointsCounterArt() {
+function PointsCounterArt({ active, reduceMotion }: ArtProps) {
   const progress = useSharedValue(0);
-  const pulse = useSharedValue(1);
-  progress.value = withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) });
-  pulse.value = withDelay(900, withRepeat(withTiming(1.04, { duration: 600 }), -1, true));
+
+  useEffect(() => {
+    if (reduceMotion) {
+      progress.value = active ? 1 : 0;
+      return;
+    }
+    progress.value = active
+      ? withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) })
+      : 0;
+  }, [active, reduceMotion, progress]);
 
   const barStyle = useAnimatedStyle(() => ({ width: `${progress.value * 72}%` }));
-  const badgeStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+  const badgeStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * 10 }],
+  }));
 
   return (
     <View style={artStyles.pointsWrap}>
-      <Animated.View style={[artStyles.tierBadge, badgeStyle, artStyles.tierBadgeRow]}>
-        <Icon name="star" size={14} color={Colors.warning} />
+      <Animated.View style={[artStyles.tierBadge, badgeStyle]}>
+        <Icon name="star" size={13} color={Colors.warning} />
         <Text style={artStyles.tierText}>Gold · 3,240 pts</Text>
       </Animated.View>
       <View style={artStyles.barTrack}>
         <Animated.View style={[artStyles.barFill, barStyle, { backgroundColor: Colors.primary }]} />
       </View>
+      <Text style={artStyles.barCaption}>760 pts to Platinum</Text>
     </View>
   );
 }
@@ -128,13 +206,13 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<FlatList<Slide>>(null);
 
   const handleScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const index = Math.round(e.nativeEvent.contentOffset.x / width);
-      setActiveIndex(index);
+      setActiveIndex(Math.round(e.nativeEvent.contentOffset.x / width));
     },
     [width]
   );
@@ -151,14 +229,16 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.wrap}>
-      <TouchableOpacity
-        style={[styles.skip, { top: insets.top + Spacing.md }]}
-        onPress={() => router.replace('/(auth)/signup')}
-        hitSlop={8}
-        accessibilityRole="button"
-      >
-        <Text style={styles.skipText}>Skip</Text>
-      </TouchableOpacity>
+      <View style={[styles.topBar, { paddingTop: insets.top + Spacing.md }]}>
+        <LenzPayLogo size="sm" />
+        <TouchableOpacity
+          onPress={() => router.replace('/(auth)/signup')}
+          hitSlop={10}
+          accessibilityRole="button"
+        >
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         ref={listRef}
@@ -169,61 +249,77 @@ export default function WelcomeScreen() {
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.key}
         onMomentumScrollEnd={handleScroll}
-        renderItem={({ item, index }) => (
-          <View style={[styles.slide, { width, paddingTop: insets.top + Spacing.xxxl }]}>
-            <View style={styles.art}>
-              {index === 0 && <SourceIconsArt />}
-              {index === 1 && <SplitBarsArt />}
-              {index === 2 && <PointsCounterArt />}
+        renderItem={({ item, index }) => {
+          const active = index === activeIndex;
+          return (
+            <View style={[styles.slide, { width }]}>
+              <View style={styles.art}>
+                {index === 0 && <SourceIconsArt active={active} reduceMotion={reduceMotion} />}
+                {index === 1 && <SplitBarsArt active={active} reduceMotion={reduceMotion} />}
+                {index === 2 && <PointsCounterArt active={active} reduceMotion={reduceMotion} />}
+              </View>
+              <Text style={styles.eyebrow}>{item.eyebrow}</Text>
+              <Text style={styles.headline}>{item.headline}</Text>
+              <Text style={styles.body}>{item.body}</Text>
             </View>
-            <Text style={styles.headline}>{item.headline}</Text>
-            <Text style={styles.body}>{item.body}</Text>
-          </View>
-        )}
+          );
+        }}
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.xl }]}>
         <View style={styles.dotsRow}>
           {SLIDES.map((slide, i) => (
             <View key={slide.key} style={[styles.pageDot, i === activeIndex && styles.pageDotActive]} />
           ))}
         </View>
-        <Button label={isLast ? 'Get Started' : 'Next'} trailingArrow onPress={goNext} />
+        <Button label={isLast ? 'Get Started' : 'Continue'} trailingArrow onPress={goNext} />
+        <TouchableOpacity
+          onPress={() => router.replace('/(auth)/signup')}
+          style={styles.signIn}
+          hitSlop={8}
+        >
+          <Text style={styles.signInText}>
+            Already have an account? <Text style={styles.signInAccent}>Sign in</Text>
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  skip: {
-    position: 'absolute',
-    top: Spacing.xxl,
-    right: Spacing.xl,
-    zIndex: 10,
-    padding: Spacing.sm,
+  wrap: { flex: 1, backgroundColor: Colors.background },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
   skipText: {
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.onSurfaceVariant,
   },
-  list: {
-    flex: 1,
-  },
+  list: { flex: 1 },
   slide: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Spacing.xxl,
-    // paddingTop is applied inline per-slide with the safe-area inset added.
   },
   art: {
-    height: 180,
+    height: 190,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xxl,
+  },
+  eyebrow: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.labelSm.fontSize,
+    letterSpacing: Typography.labelSm.letterSpacing,
+    color: Colors.primary,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.sm,
   },
   headline: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -236,14 +332,13 @@ const styles = StyleSheet.create({
   body: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodyMd.fontSize,
+    lineHeight: 22,
     color: Colors.onSurfaceVariant,
     textAlign: 'center',
     marginTop: Spacing.md,
+    maxWidth: 320,
   },
-  footer: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xxl,
-  },
+  footer: { paddingHorizontal: Spacing.xl },
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -256,65 +351,66 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: Colors.outlineVariant,
   },
-  pageDotActive: {
-    backgroundColor: Colors.primary,
-    width: 18,
+  pageDotActive: { backgroundColor: Colors.primary, width: 18 },
+  signIn: { alignSelf: 'center', paddingVertical: Spacing.md, marginTop: Spacing.xs },
+  signInText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceVariant,
   },
+  signInAccent: { fontFamily: 'Inter_600SemiBold', color: Colors.primary },
 });
 
 const artStyles = StyleSheet.create({
-  row: {
-    alignItems: 'center',
-  },
-  iconsRow: {
-    flexDirection: 'row',
-  },
+  column: { alignItems: 'center' },
+  iconsRow: { flexDirection: 'row', gap: Spacing.sm },
   iconBubble: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: Colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: Spacing.xs,
   },
-  arrow: {
-    marginVertical: Spacing.sm,
-  },
+  arrow: { marginVertical: Spacing.md },
   targetBubble: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: Colors.primary + '20',
     borderWidth: 1.5,
     borderColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  barsWrap: {
-    width: 220,
-    gap: Spacing.md,
+  barsWrap: { width: 240, gap: Spacing.md },
+  barRow: { gap: Spacing.xs },
+  barLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
   },
-  pointsWrap: {
-    width: 220,
-    alignItems: 'center',
-    gap: Spacing.lg,
+  barCaption: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceMuted,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
+  pointsWrap: { width: 240, alignItems: 'center', gap: Spacing.lg },
   tierBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     backgroundColor: Colors.surfaceContainerHigh,
     borderRadius: Radius.pill,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
   },
-  tierBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
   tierText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
-    color: Colors.primary,
+    color: Colors.warning,
   },
   barTrack: {
     width: '100%',
@@ -323,8 +419,5 @@ const artStyles = StyleSheet.create({
     backgroundColor: Colors.surfaceContainerHigh,
     overflow: 'hidden',
   },
-  barFill: {
-    height: '100%',
-    borderRadius: 5,
-  },
+  barFill: { height: '100%', borderRadius: 5 },
 });

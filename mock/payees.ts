@@ -8,6 +8,9 @@ import { delay } from './delay';
  * directory. Swap for real lookups behind the same `PayeeDirectory` interface.
  */
 
+// Account numbers below are real NUBAN check-digit-valid numbers for their
+// bank codes, so the manual-entry flow's local validation passes before the
+// directory lookup runs. Regenerate the last digit if a bank code changes.
 export const MOCK_PAYEES: Payee[] = [
   {
     id: 'mkt_bolt_001',
@@ -15,7 +18,7 @@ export const MOCK_PAYEES: Payee[] = [
     resolutionType: 'qr',
     settlementCurrency: 'NGN',
     receivingMethod: 'bank_transfer',
-    accountNumber: '0123456789',
+    accountNumber: '0123456784',
     bankCode: '044',
     lenzTag: '@ridehailer_lagos',
     isVerified: true,
@@ -26,9 +29,22 @@ export const MOCK_PAYEES: Payee[] = [
     resolutionType: 'lenz_tag',
     settlementCurrency: 'NGN',
     receivingMethod: 'bank_transfer',
-    accountNumber: '9876543210',
+    accountNumber: '9876543216',
     bankCode: '058',
     lenzTag: '@coffeeandco',
+    isVerified: true,
+  },
+  {
+    // The merchant app's own profile (see mock/merchant.ts). Without this the
+    // consumer app can scan the merchant QR but has nowhere to settle to.
+    id: 'mch_001',
+    displayName: 'Emeka\u2019s Kitchen',
+    resolutionType: 'qr',
+    settlementCurrency: 'NGN',
+    receivingMethod: 'bank_transfer',
+    accountNumber: '2210987653',
+    bankCode: '058',
+    lenzTag: '@emekaskitchen',
     isVerified: true,
   },
   {
@@ -39,7 +55,7 @@ export const MOCK_PAYEES: Payee[] = [
     receivingMethod: 'bank_transfer',
     // Accepts stablecoins directly, so the engine can skip the off-ramp (§5.6).
     acceptedCryptoAssets: ['USDT'],
-    accountNumber: '5544332211',
+    accountNumber: '5544332213',
     bankCode: '033',
     lenzTag: '@lekkielectronics',
     isVerified: true,
