@@ -38,6 +38,7 @@ export function TransactionRow({
       activeOpacity={0.7}
       style={[styles.row, divided && styles.divided]}
       accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? `${transaction.merchantName}, ${amountPrefix}₦${transaction.amount.toLocaleString()}` : undefined}
     >
       <View style={styles.iconWrap}>
         <Icon name={CATEGORY_ICON[transaction.category] ?? CATEGORY_ICON.other} size={18} color={Colors.onSurfaceVariant} />

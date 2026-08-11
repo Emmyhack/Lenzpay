@@ -19,7 +19,13 @@ export function SectionTitle({ title, rightLabel, onPressRight, padded = false }
     <View style={[styles.row, padded && styles.padded]}>
       <Text style={styles.title}>{title}</Text>
       {rightLabel ? (
-        <TouchableOpacity style={styles.rightRow} onPress={onPressRight} hitSlop={8}>
+        <TouchableOpacity
+          style={styles.rightRow}
+          onPress={onPressRight}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`${rightLabel}: ${title}`}
+        >
           <Text style={styles.right}>{rightLabel}</Text>
           <Icon name="chevron-forward" size={14} color={Colors.primary} />
         </TouchableOpacity>

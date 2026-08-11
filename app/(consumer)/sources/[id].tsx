@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
@@ -21,7 +21,9 @@ import { showToast } from '@/components/ui/Toast';
 
 function UsageBar({ ratio }: { ratio: number }) {
   const width = useSharedValue(0);
-  width.value = withTiming(Math.min(ratio, 1) * 100, { duration: 700, easing: Easing.out(Easing.cubic) });
+  useEffect(() => {
+    width.value = withTiming(Math.min(ratio, 1) * 100, { duration: 700, easing: Easing.out(Easing.cubic) });
+  }, [ratio, width]);
   const style = useAnimatedStyle(() => ({ width: `${width.value}%` }));
 
   return (

@@ -7,6 +7,7 @@ import { executePlan, type ExecutorDeps } from './executor';
 import { Ledger, ledger } from './ledger';
 import { IdempotencyStore } from './idempotency';
 import { Treasury, treasury } from './treasury';
+import { CollectionQueue, collectionQueue, runCollectionSweep, type SweepReport } from './collections';
 import {
   createDevRailRegistry,
   createMockSettlementRail,
@@ -52,6 +53,7 @@ export interface EngineConfig {
   ledger: Ledger;
   idempotency: IdempotencyStore<ExecutionResult>;
   treasury: Treasury;
+  collections: CollectionQueue;
 }
 
 function defaultConfig(): EngineConfig {
@@ -77,6 +79,7 @@ function defaultConfig(): EngineConfig {
     ledger,
     idempotency: new IdempotencyStore<ExecutionResult>(),
     treasury,
+    collections: collectionQueue,
   };
 }
 
@@ -115,6 +118,7 @@ export const paymentEngine = {
       feed: getRateFeed(),
       idempotency: config.idempotency,
       treasury: config.treasury,
+      collections: config.collections,
     };
     return executePlan({ plan, payee, idempotencyKey, userId }, deps);
   },
@@ -125,5 +129,44 @@ export const paymentEngine = {
 
   treasury(): Treasury {
     return config.treasury;
+  },
+
+  collections(): CollectionQueue {
+    return config.collections;
+  },
+
+  /**
+   * Run the collection sweep: one debit per account covering everything it
+   * owes.
+   *
+   * **This must never be the production trigger.** Collection cannot depend on
+   * a client being open — a user who stops opening the app would simply never
+   * be debited, turning float exposure into a permanent loss. In production a
+   * scheduled backend job owns this on `Treasury.sweepIntervalMs`; the method
+   * exists so the netting can be exercised and measured in development, and it
+   * refuses to run outside it.
+   *
+   * The backend job's contract is exactly this call: idempotent per batch,
+   * safe to re-run, and safe to run concurrently with payments because
+   * `buildBatches` only picks up items already queued.
+   */
+  sweepCollections(userId?: string): Promise<SweepReport> {
+    if (!__DEV__ && !Config.useMockData) {
+      return Promise.reject(
+        new Error(
+          'Collection sweeps are a scheduled backend job. A client-triggered sweep would mean users who stop opening the app are never debited.'
+        )
+      );
+    }
+
+    return runCollectionSweep(
+      {
+        queue: config.collections,
+        rails: config.rails,
+        onCollected: (batch) =>
+          config.treasury.recover(batch.userId, batch.totalInSettlementCurrency),
+      },
+      userId
+    );
   },
 };

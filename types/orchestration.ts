@@ -95,6 +95,13 @@ export interface FundingPlan {
   /** Sum of every leg's conversion cost, in settlement currency. */
   totalFees: number;
   /**
+   * Cost of the debits needed to fund this plan, one per leg, before netting.
+   * Distinct from `totalFees`: that is what the *user* pays to convert, this is
+   * what *Lenz* pays to move. It is the number that decides whether a leg was
+   * worth adding.
+   */
+  collectionCost: number;
+  /**
    * Earliest quote expiry across all legs — the plan as a whole is only good
    * until this instant. `null` when every leg is same-currency (§5.5).
    */
@@ -242,7 +249,9 @@ export type PayeeResolutionType =
   | 'qr'
   | 'account_number'
   | 'lenz_tag'
-  | 'crypto_address';
+  | 'crypto_address'
+  /** An EMVCo / NQR code issued by someone else's scheme (see services/emvco). */
+  | 'emvco';
 
 export type ReceivingMethod =
   | 'bank_transfer'

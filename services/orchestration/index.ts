@@ -54,6 +54,22 @@ export {
 export { IdempotencyStore, deriveIdempotencyKey } from './idempotency';
 
 export { Treasury, treasury, collectionConfidence } from './treasury';
+
+export {
+  CollectionQueue,
+  collectionQueue,
+  runCollectionSweep,
+} from './collections';
+export type { CollectionItem, SweepBatch, SweepReport } from './collections';
+
+export {
+  RAIL_COSTS,
+  collectionCost,
+  minimumViableLeg,
+  planCollectionCost,
+  nettingSaving,
+} from './costs';
+export type { RailCostTerms } from './costs';
 export type { FloatExposure, FrontDecision, TreasuryLimits } from './treasury';
 
 export {

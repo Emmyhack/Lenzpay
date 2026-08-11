@@ -7,8 +7,12 @@ import { FIXED_NOW, cryptoWallet, feed, ngnBank, payee, usdAccount } from './__f
 
 const at = { now: FIXED_NOW };
 
-function legsFor(sources: Parameters<typeof planPayment>[0], amount: number) {
-  const result = planPayment(sources, amount, 'NGN', feed(), at);
+function legsFor(
+  sources: Parameters<typeof planPayment>[0],
+  amount: number,
+  maxLegs = 4
+) {
+  const result = planPayment(sources, amount, 'NGN', feed(), { ...at, maxLegs });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error('unreachable');
   return result.plan.legs;
@@ -110,7 +114,8 @@ test('a whole waterfall reconciles across every currency it touches', () => {
       usdAccount(4, { id: 'src_usd' }),
       cryptoWallet('USDT', 30, { id: 'src_usdt' }),
     ],
-    50_000
+    50_000,
+    3
   );
   assert.equal(legs.length, 3);
 

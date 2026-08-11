@@ -205,13 +205,36 @@ export const MOCK_MERCHANT: Merchant = {
   acceptedCurrencies: ['NGN', 'USD', 'BTC', 'USDT'],
 };
 
+/**
+ * Cashback by category, derived from the profit model rather than chosen.
+ *
+ * The previous rates (0.5%–3%) exceeded gross revenue: a payment earns ~1.5%
+ * MDR, of which Lenz keeps a share, and rails consume most of that. Paying 3%
+ * back meant every crypto-category payment lost money on rewards alone, before
+ * a rail was touched.
+ *
+ * `sustainableCashbackRate` puts the affordable ceiling at ~0.18% of the
+ * payment on a netted ₦4,500 bank transaction, giving back roughly 30% of net
+ * contribution. Categories vary within that: converted payments (crypto, FX)
+ * carry spread margin on top of MDR, so they can fund more.
+ *
+ * `pricing.test.ts` asserts contribution stays positive at these rates across
+ * representative payments — change them and that test is the guard.
+ */
 export const CASHBACK_RATES: Record<string, number> = {
-  transport: 0.015,
-  food: 0.02,
-  shopping: 0.01,
-  crypto: 0.03,
-  other: 0.005,
+  transport: 0.0015,
+  food: 0.002,
+  shopping: 0.0012,
+  crypto: 0.0025,
+  other: 0.001,
 };
+
+/**
+ * Cash value of one reward point, used to accrue the liability. Points are
+ * issued at 0.5% of the payment amount, so this sets their true cost at
+ * ~0.025% — small enough to sit alongside cashback inside the margin.
+ */
+export const REWARD_POINT_VALUE = 0.05;
 
 export const CATEGORY_ICON: Record<string, IconName> = {
   transport: 'car',

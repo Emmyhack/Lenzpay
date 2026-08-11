@@ -4,6 +4,7 @@ import {
   Text,
   Share,
   ScrollView,
+  Modal,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -21,6 +22,12 @@ import { CryptoLogo, hasCryptoLogo } from '@/components/ui/CryptoLogo';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { fetchTransactionById } from '@/services/payments';
+import {
+  DISPUTE_REASON_LABEL,
+  disputeQueue,
+  isDisputable,
+  type DisputeReason,
+} from '@/services/disputes';
 import { showToast } from '@/components/ui/Toast';
 import { CATEGORY_ICON } from '@/mock/data';
 import type { FundingLeg } from '@/types/orchestration';
@@ -52,6 +59,8 @@ export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [transaction, setTransaction] = useState<Transaction | null | undefined>(undefined);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputedLegIds, setDisputedLegIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchTransactionById(id).then((t) => setTransaction(t ?? null));
@@ -90,6 +99,33 @@ export default function TransactionDetailScreen() {
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     showToast('success', 'Copied', transaction.txnRef);
   };
+
+  /**
+   * §7 — a partial reversal is a first-class operation. A user whose bank leg
+   * settled fine but whose crypto leg never arrived should be able to dispute
+   * just that leg, not the whole payment.
+   */
+  const submitDispute = (reason: DisputeReason) => {
+    const disputedLegs = legs.filter((leg) => disputedLegIds.includes(leg.id));
+    const dispute = disputeQueue.raise({
+      transaction,
+      reason,
+      legs: disputedLegs.length > 0 ? disputedLegs : undefined,
+    });
+
+    setDisputeOpen(false);
+    setDisputedLegIds([]);
+    showToast(
+      'success',
+      'Report received',
+      `We're looking into ₦${dispute.amount.toLocaleString()} · ref ${dispute.txnRef}`
+    );
+  };
+
+  const toggleDisputedLeg = (legId: string) =>
+    setDisputedLegIds((current) =>
+      current.includes(legId) ? current.filter((id) => id !== legId) : [...current, legId]
+    );
 
   const handleShare = () => {
     const breakdown = legs.length > 1 ? `\n${legs.map(describeLeg).join('\n')}` : '';
@@ -184,13 +220,78 @@ export default function TransactionDetailScreen() {
 
         <View style={styles.actions}>
           <Button label="Share Receipt" onPress={handleShare} />
-          <Button
-            label="Report a problem"
-            variant="tertiary"
-            onPress={() => router.push('/(consumer)/profile/support')}
-          />
+          {isDisputable(transaction) ? (
+            <Button
+              label="Report a problem"
+              variant="tertiary"
+              onPress={() => setDisputeOpen(true)}
+            />
+          ) : null}
         </View>
       </ScrollView>
+
+      <Modal visible={disputeOpen} transparent animationType="slide">
+        <View style={styles.sheetBackdrop}>
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>What went wrong?</Text>
+            <Text style={styles.sheetBody}>
+              ₦{transaction.amount.toLocaleString()} to {transaction.merchantName}
+            </Text>
+
+            {/* Only offered on a split — picking a leg is meaningless when
+                there is only one. */}
+            {legs.length > 1 ? (
+              <View style={styles.legPicker}>
+                <Text style={styles.legPickerLabel}>
+                  Which part? Leave blank to report the whole payment.
+                </Text>
+                {legs.map((leg) => {
+                  const selected = disputedLegIds.includes(leg.id);
+                  return (
+                    <TouchableOpacity
+                      key={leg.id}
+                      onPress={() => toggleDisputedLeg(leg.id)}
+                      style={[styles.legOption, selected && styles.legOptionSelected]}
+                    >
+                      <Icon
+                        name={selected ? 'checkbox' : 'square-outline'}
+                        size={17}
+                        color={selected ? Colors.primary : Colors.onSurfaceMuted}
+                      />
+                      <Text style={styles.legOptionText} numberOfLines={1}>
+                        {leg.source.label}
+                      </Text>
+                      <Text style={styles.legOptionAmount}>
+                        ₦{leg.amountInSettlementCurrency.toLocaleString()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            {(Object.keys(DISPUTE_REASON_LABEL) as DisputeReason[]).map((reason) => (
+              <TouchableOpacity
+                key={reason}
+                style={styles.reasonRow}
+                onPress={() => submitDispute(reason)}
+              >
+                <Text style={styles.reasonText}>{DISPUTE_REASON_LABEL[reason]}</Text>
+                <Icon name="chevron-forward" size={15} color={Colors.onSurfaceMuted} />
+              </TouchableOpacity>
+            ))}
+
+            <Button
+              label="Cancel"
+              variant="tertiary"
+              onPress={() => {
+                setDisputeOpen(false);
+                setDisputedLegIds([]);
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -432,5 +533,75 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: Spacing.xxl,
     gap: Spacing.md,
+  },
+
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: Colors.surfaceBright,
+    borderTopLeftRadius: Radius.xxl,
+    borderTopRightRadius: Radius.xxl,
+    padding: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
+    gap: Spacing.xs,
+  },
+  sheetTitle: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: Typography.titleMd.fontSize,
+    color: Colors.onSurface,
+  },
+  sheetBody: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceVariant,
+    marginBottom: Spacing.md,
+  },
+  legPicker: {
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+  },
+  legPickerLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceMuted,
+    marginBottom: Spacing.xs,
+  },
+  legOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  legOptionSelected: {},
+  legOptionText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurface,
+  },
+  legOptionAmount: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurfaceVariant,
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.outlineVariant,
+  },
+  reasonText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurface,
   },
 });

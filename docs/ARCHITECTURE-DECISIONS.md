@@ -205,6 +205,186 @@ float exposure drops to the FX and crypto corridors only.
 
 ---
 
+---
+
+## ADR-005 — Operate under a partner licence first; take our own later
+
+**Status:** accepted · **Implements:** the phased path out of ADR-000/004
+
+**Decision:** Lenz does not seek its own CBN licence to launch. It operates as a
+**Technical Service Provider** above licensed rails, and moves up a ladder of
+regulatory postures as volume justifies it. The posture is a single setting —
+`ACTIVE_PHASE` in `constants/config.ts` — and it drives float, leg cap, netting
+and float ownership together, so "what are we licensed to do" cannot desync
+from what the engine will actually attempt.
+
+### The three tests that decide the licence
+
+1. **Do we hold customer funds?** → Mobile Money Operator / Payment Service Bank
+2. **Do we move money in our own name?** → Switching and Processing
+3. **Do we extend credit?** → lending licence
+
+Answer no to all three and no licence of our own is required. Orchestration is
+*instruction*: debits run on the aggregator's mandate, payouts on the PSP's
+rails, conversion inside the FX or VASP partner.
+
+### The float is what breaks that
+
+Fronting settlement from our own balance sheet triggers tests 2 and 3 at once.
+The thing that solved atomicity is the thing that pushes us into the heavy
+categories. Resolution, in preference order:
+
+- **Partner-held float** — the PSP operates it on their licence; we
+  collateralise it. Legally theirs, economically ours. Preserves the full
+  product. This is `partner_float`, and it is the posture to get counsel on.
+- **No float** — collect first, then settle. Zero credit exposure, zero licence,
+  single-source only. This is `partner_tsp`, and it is shippable today.
+- **Agent model** — operate as an agent of a licensed MMO.
+
+### The phases
+
+| Phase | Float | Legs | Netting | Licence |
+|---|---|---|---|---|
+| `partner_tsp` | none | 1 | no | **none of our own** |
+| `partner_float` | partner-held | 2 | yes | partner's |
+| `own_licence` | ours | 4 | yes | PSSP → Switching |
+
+`partner_tsp` is not a degraded mode — it is exactly §9's Phase 1, and a
+single-source payment needs no float because there is only one account to
+debit and therefore no partial-charge risk to protect against. The product
+phasing and the licensing path are the same ladder.
+
+Smart Split and netted collection unlock **together** at `partner_float`, which
+is fortunate: the split is what makes netting worth doing, and netting is what
+makes the split affordable (ADR-006).
+
+**Revisit when:** volume makes partner margin exceed the cost of licensing, or
+a partner relationship becomes a single point of failure.
+
+---
+
+## ADR-006 — Price the cost of moving money, and net collection
+
+**Status:** accepted
+
+**Decision:** the cost of a *debit* is a first-class planning input, and
+collection is deferred and netted per account rather than executed per leg.
+
+### The problem
+
+The engine priced conversion and ignored movement. Aggregator direct debit in
+Nigeria costs a flat fee in the ₦50–60 range per debit on small amounts, and a
+waterfall pays it **per leg**. On a ₦4,500 payment split three ways that is
+~₦165 to collect against roughly ₦67 of revenue at 1.5% — deeply negative.
+
+Worse, it is structurally adverse: the waterfall fires precisely when the user
+is short across every account, so the most expensive path runs on the smallest,
+least profitable payments.
+
+### What changed
+
+- `orchestration/costs.ts` models per-rail debit cost. `FundingPlan` now carries
+  `collectionCost` — what *Lenz* pays to move, distinct from `totalFees`, what
+  the *user* pays to convert.
+- The planner prefers legs that clear their own debit fee, and will not add a
+  source whose entire balance is worth less than the cost of pulling it.
+- **Cost optimisation never overrides coverage.** If the economic subset cannot
+  cover the payment but the full set can, the full set is used. A payment the
+  user can afford must not fail because one leg is small. Pinned by test.
+- Leg cap cut from 4 to 2 under `partner_float`. Each extra leg is another
+  fixed fee for diminishing benefit.
+
+### Netting
+
+Because the float already decouples paying the payee from collecting,
+collection need not be immediate or per-leg. `orchestration/collections.ts`
+queues legs and sweeps one debit per account:
+
+> Five payments a day across two accounts: ten debits inline, two netted.
+
+The saving scales with activity, which inverts the economics — active users
+become cheaper to serve per payment rather than more expensive.
+
+**What it costs:** exposure lives from settlement until the next sweep rather
+than for seconds. Sweep cadence is a direct trade of collection cost against
+exposure duration, and `Treasury`'s ceilings are load-bearing here rather than
+guarding an edge case.
+
+**Before launch:** replace the list prices in `RAIL_COSTS` with your negotiated
+commercial terms, and model cost-per-leg × expected-legs × payment-mix against
+what the merchant actually pays. If netted collection doesn't get blended cost
+into single-digit percent on a ₦5,000 payment, the product needs a different
+price point rather than a different engine.
+
+---
+
+---
+
+## ADR-007 — Read the national QR standard, even though we can't issue it
+
+**Status:** accepted
+
+**Decision:** the scanner parses EMVCo Merchant-Presented Mode — the format
+behind Nigeria's NQR — alongside our own `lenzpay://` scheme.
+`services/emvco.ts`.
+
+**Why:** a merchant with an NQR sticker already on the counter is not going to
+print a second one for us. Without this, every such merchant is unscannable,
+which constrains acceptance far more than anything inside the app. Issuing NQR
+requires being a scheme participant, which is a licensing question (ADR-005);
+*reading* it requires only a TLV parser and a CRC check.
+
+**Safety:** a code failing its CRC-16 is refused outright rather than paid — a
+bad checksum means misread or tampered, and the alternative is settling to a
+corrupted destination. A valid national code names a real merchant we have no
+independent record of, so it resolves **unverified** and the UI warns rather
+than reassures.
+
+**What this costs:** we can accept these payments but not originate the codes,
+so Lenz merchants still need a Lenz QR. Full interoperability needs scheme
+participation.
+
+---
+
+## ADR-008 — One brand green
+
+**Status:** accepted
+
+**Decision:** `Colors.primary` (`#34fea0`, mint) is the single source of truth
+for the brand accent, including the wordmark.
+
+**Why:** the app icon uses `#b5e61d`, a yellow-lime. Two greens is a brand bug.
+The token wins because every CTA, badge, chart accent and focus state already
+uses it — changing the token would mean recolouring the entire product to match
+one asset.
+
+**Outstanding:** `assets/icon.png`, `splash-icon.png` and the Android adaptive
+icon are the outliers and need regenerating in mint. That needs a design tool,
+not code.
+
+---
+
+## ADR-009 — Disputes and partial reversal
+
+**Status:** accepted · **Implements:** §7
+
+**Decision:** disputes are raised against specific *legs*, not only whole
+transactions, and resolving one in the user's favour reverses exactly those legs.
+`services/disputes.ts`.
+
+**Why:** §7 requires partial reversal to be first-class. The ledger has always
+supported it — every posting carries a `legId` — but nothing drove it. A user
+whose bank leg settled fine while the crypto off-ramp failed should be able to
+dispute that leg alone.
+
+**Honesty about the gap:** there is no dispute backend. Submissions queue
+locally so they survive to be flushed later. A button that silently drops the
+case would be worse than no button. The previous UI labelled this "Dispute
+Transaction" while routing to generic support — a label promising a flow that
+did not exist; it now says "Report a problem" and does something real.
+
+---
+
 ## Launch-readiness blockers
 
 Encoded as data in `providers.ts` (`outstandingBlockers()`) rather than left in
@@ -216,3 +396,12 @@ prose, so a readiness check can assert on them:
 - FX partner quote API with a rate lock ≥ 45s, honoured **at settlement**
 - VASP partner registration status verified directly (Phase 4)
 - Float capital sized against modelled volume × collection latency
+- Counsel sign-off on the float-as-credit question before moving to `partner_float` (ADR-005)
+- `RAIL_COSTS` replaced with negotiated commercial terms (ADR-006)
+- Collection sweep scheduled as a backend job. The client-side trigger now
+  **refuses to run** outside dev, so this is a hard launch dependency: without
+  the job, nothing is ever collected (ADR-006, PROFIT-MODEL.md)
+- Dispute backend to flush the local queue into (ADR-009)
+- Brand assets regenerated in `#34fea0` (ADR-008)
+- `DEFAULT_PRICING` replaced with negotiated MDR/FX share; `paymentsPerSweep`
+  measured against real traffic rather than assumed (PROFIT-MODEL.md)

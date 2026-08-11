@@ -30,6 +30,7 @@ export function Segmented<T extends string>({ options, value, onChange, style }:
             onPress={() => onChange(option.value)}
             style={[styles.tab, selected && styles.tabActive]}
             accessibilityRole="tab"
+            accessibilityLabel={option.label}
             accessibilityState={{ selected }}
           >
             {option.icon ? (

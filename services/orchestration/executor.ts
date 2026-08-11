@@ -8,7 +8,7 @@ import type {
   Payee,
   SettlementStrategy,
 } from '@/types/orchestration';
-import { Orchestration } from '@/constants/config';
+import { Orchestration, Treasury as TreasuryConfig } from '@/constants/config';
 import { roundCurrency, sumAmounts } from '@/services/money';
 import { fromSettlement, isQuoteExpired, legFee, requote, type RateFeed } from './fx';
 import {
@@ -21,6 +21,7 @@ import {
 import { nextId } from './ids';
 import type { IdempotencyStore } from './idempotency';
 import { Treasury } from './treasury';
+import type { CollectionQueue } from './collections';
 import {
   DEFAULT_HOLD_TTL_MS,
   type RailRegistry,
@@ -61,6 +62,12 @@ export interface ExecutorDeps {
   feed: RateFeed;
   idempotency: IdempotencyStore<ExecutionResult>;
   treasury: Treasury;
+  /**
+   * When present and netting is enabled, collection is deferred into this queue
+   * and swept per account instead of debited per leg. See `collections.ts` for
+   * why that is worth more than any ranking improvement.
+   */
+  collections?: CollectionQueue;
   now?: () => number;
 }
 
@@ -382,20 +389,33 @@ async function executeFloatFronted(
   // A leg that won't collect is Lenz's exposure to recover, and must never be
   // reported to the user as a failed payment.
   const uncollected: FundingLeg[] = [];
+  const netted = TreasuryConfig.nettedCollection && !!deps.collections;
 
-  for (const leg of legs) {
-    const collected = await collectLeg(leg, deps, idempotencyKey);
-
-    if (collected) {
-      leg.status = 'captured';
-      deps.treasury.recover(transactionId, leg.amountInSettlementCurrency);
-      ledgerEntries.push(
-        ...deps.ledger.post(transactionId, sourceToFloatPostings(leg), now())
-      );
-    } else {
-      leg.status = 'failed';
-      deps.treasury.recordFailedCollection(transactionId);
+  if (netted) {
+    // Queue every leg and stop. The payee has their money; these accounts get
+    // debited once each on the next sweep, however many payments they funded
+    // in between. Exposure stays open until then, which is what the treasury
+    // ceilings are guarding.
+    for (const leg of legs) {
+      deps.collections!.enqueue({ transactionId, userId, leg, now: now() });
+      leg.status = 'planned';
       uncollected.push(leg);
+    }
+  } else {
+    for (const leg of legs) {
+      const collected = await collectLeg(leg, deps, idempotencyKey);
+
+      if (collected) {
+        leg.status = 'captured';
+        deps.treasury.recover(transactionId, leg.amountInSettlementCurrency);
+        ledgerEntries.push(
+          ...deps.ledger.post(transactionId, sourceToFloatPostings(leg), now())
+        );
+      } else {
+        leg.status = 'failed';
+        deps.treasury.recordFailedCollection(transactionId);
+        uncollected.push(leg);
+      }
     }
   }
 

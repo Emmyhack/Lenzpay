@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BiometricPref } from '@/types/user';
 import { TransactionLimits } from '@/constants/config';
+import type { FraudAlert } from '@/types/security';
 
 interface SecurityState {
   biometricPref: BiometricPref;
@@ -10,6 +11,7 @@ interface SecurityState {
   dailyLimitNGN: number;
   perTxnLimitNGN: number;
   hasFraudAlert: boolean;
+  fraudAlert: FraudAlert | null;
 
   // Fraud protection toggles
   newDeviceAlerts: boolean;
@@ -24,6 +26,7 @@ interface SecurityState {
   setDailyLimit: (value: number) => void;
   setPerTxnLimit: (value: number) => void;
   clearFraudAlert: () => void;
+  raiseFraudAlert: (alert: FraudAlert) => void;
   toggleNewDeviceAlerts: (value: boolean) => void;
   toggleUnusualAmountAlerts: (value: boolean) => void;
   toggleInternationalBlocked: (value: boolean) => void;
@@ -37,7 +40,8 @@ export const useSecurityStore = create<SecurityState>((set) => ({
   skipPinBelowThreshold: true,
   dailyLimitNGN: TransactionLimits.defaultDailyLimitNGN,
   perTxnLimitNGN: TransactionLimits.defaultPerTxnLimitNGN,
-  hasFraudAlert: true,
+  hasFraudAlert: false,
+  fraudAlert: null,
 
   newDeviceAlerts: true,
   unusualAmountAlerts: true,
@@ -50,7 +54,8 @@ export const useSecurityStore = create<SecurityState>((set) => ({
   toggleSkipPinBelowThreshold: (skipPinBelowThreshold) => set({ skipPinBelowThreshold }),
   setDailyLimit: (dailyLimitNGN) => set({ dailyLimitNGN }),
   setPerTxnLimit: (perTxnLimitNGN) => set({ perTxnLimitNGN }),
-  clearFraudAlert: () => set({ hasFraudAlert: false }),
+  clearFraudAlert: () => set({ hasFraudAlert: false, fraudAlert: null }),
+  raiseFraudAlert: (fraudAlert) => set({ hasFraudAlert: true, fraudAlert }),
   toggleNewDeviceAlerts: (newDeviceAlerts) => set({ newDeviceAlerts }),
   toggleUnusualAmountAlerts: (unusualAmountAlerts) => set({ unusualAmountAlerts }),
   toggleInternationalBlocked: (internationalBlocked) => set({ internationalBlocked }),

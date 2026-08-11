@@ -6,6 +6,8 @@ interface RewardsState {
   tier: RewardsTierName;
   lifetimeCashbackNGN: number;
   addPoints: (points: number, cashbackNGN: number) => void;
+  appliedTransactionIds: string[];
+  applyTransactionReward: (transactionId: string, points: number, cashbackNGN: number) => void;
   redeemPoints: (points: number) => void;
 }
 
@@ -24,6 +26,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
   points: 3_240,
   tier: 'Gold',
   lifetimeCashbackNGN: 1_620,
+  appliedTransactionIds: [],
   addPoints: (points, cashbackNGN) =>
     set((state) => {
       const newPoints = state.points + points;
@@ -33,6 +36,18 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
         lifetimeCashbackNGN: state.lifetimeCashbackNGN + cashbackNGN,
       };
     }),
+  applyTransactionReward: (transactionId, points, cashbackNGN) => {
+    if (get().appliedTransactionIds.includes(transactionId)) return;
+    set((state) => {
+      const newPoints = state.points + points;
+      return {
+        points: newPoints,
+        tier: tierForPoints(newPoints),
+        lifetimeCashbackNGN: state.lifetimeCashbackNGN + cashbackNGN,
+        appliedTransactionIds: [...state.appliedTransactionIds, transactionId],
+      };
+    });
+  },
   redeemPoints: (points) =>
     set((state) => {
       const newPoints = Math.max(0, state.points - points);

@@ -6,8 +6,18 @@ import type {
   LedgerEntry,
   Payee,
 } from '@/types/orchestration';
+import { Treasury as TreasuryConfig } from '@/constants/config';
 import { roundCurrency } from '@/services/money';
 import { nextId } from './ids';
+
+/**
+ * Whose books the float sits on. Under a partner licence the float is legally
+ * the partner's, and the ledger has to say so — "our float" and "float we
+ * collateralise on someone else's licence" are different liabilities.
+ */
+function floatRef(currency: string): string {
+  return `float_${TreasuryConfig.floatOwner}_${currency}`;
+}
 
 /**
  * Ledger & reconciliation (§6.1).
@@ -198,7 +208,7 @@ export function sourceToFloatPostings(leg: FundingLeg): PostingDraft[] {
     },
     {
       account: 'lenz_float',
-      accountRef: `float_${src}`,
+      accountRef: floatRef(src),
       direction: 'debit',
       amount: leg.amountInSourceCurrency,
       currency: src,
@@ -214,7 +224,7 @@ export function sourceToFloatPostings(leg: FundingLeg): PostingDraft[] {
     drafts.push(
       {
         account: 'lenz_float',
-        accountRef: `float_${src}`,
+        accountRef: floatRef(src),
         direction: 'credit',
         amount: leg.amountInSourceCurrency,
         currency: src,
@@ -241,7 +251,7 @@ export function sourceToFloatPostings(leg: FundingLeg): PostingDraft[] {
       },
       {
         account: 'lenz_float',
-        accountRef: `float_${dst}`,
+        accountRef: floatRef(dst),
         direction: 'debit',
         amount: gross,
         currency: dst,
@@ -256,7 +266,7 @@ export function sourceToFloatPostings(leg: FundingLeg): PostingDraft[] {
     drafts.push(
       {
         account: 'lenz_float',
-        accountRef: `float_${dst}`,
+        accountRef: floatRef(dst),
         direction: 'credit',
         amount: fee,
         currency: dst,
@@ -292,7 +302,7 @@ export function floatToPayeePostings(
   return [
     {
       account: 'lenz_float',
-      accountRef: `float_${currency}`,
+      accountRef: floatRef(currency),
       direction: 'credit',
       amount,
       currency,

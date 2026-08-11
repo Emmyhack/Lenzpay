@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { PaymentSource } from '@/types/payment';
 import { MOCK_SOURCES } from '@/mock/data';
+import type { FundingLeg } from '@/types/orchestration';
 
 interface SourcesState {
   sources: PaymentSource[];
@@ -14,11 +15,14 @@ interface SourcesState {
   /** "Keep buffer" flag — reserve funds are drawn on last (§5.2). */
   setReserve: (id: string, isReserve: boolean) => void;
   refreshBalances: () => Promise<void>;
+  appliedTransactionIds: string[];
+  applySettledTransaction: (transactionId: string, legs: FundingLeg[]) => void;
 }
 
 export const useSourcesStore = create<SourcesState>((set, get) => ({
   sources: MOCK_SOURCES,
   isLoading: false,
+  appliedTransactionIds: [],
   setSources: (sources) => set({ sources }),
   addSource: (source) => set({ sources: [...get().sources, source] }),
   removeSource: (id) => set({ sources: get().sources.filter((s) => s.id !== id) }),
@@ -41,5 +45,22 @@ export const useSourcesStore = create<SourcesState>((set, get) => ({
     // Replace with services/sources.ts calls once wired to a real backend.
     await new Promise((r) => setTimeout(r, 600));
     set({ isLoading: false, sources: get().sources.map((s) => ({ ...s, lastSynced: new Date() })) });
+  },
+  applySettledTransaction: (transactionId, legs) => {
+    if (get().appliedTransactionIds.includes(transactionId)) return;
+    const captured = new Map(legs.filter((leg) => leg.status === 'captured').map((leg) => [leg.sourceId, leg]));
+    set({
+      sources: get().sources.map((source) => {
+        const leg = captured.get(source.id);
+        if (!leg) return source;
+        return {
+          ...source,
+          rawBalance: Math.max(0, source.rawBalance - leg.amountInSourceCurrency),
+          balance: Math.max(0, source.balance - leg.amountInSettlementCurrency - leg.feeInSettlementCurrency),
+          lastSynced: new Date(),
+        };
+      }),
+      appliedTransactionIds: [...get().appliedTransactionIds, transactionId],
+    });
   },
 }));

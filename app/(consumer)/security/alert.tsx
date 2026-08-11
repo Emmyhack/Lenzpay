@@ -18,6 +18,7 @@ import { showToast } from '@/components/ui/Toast';
 export default function FraudAlertScreen() {
   const router = useRouter();
   const clearFraudAlert = useSecurityStore((s) => s.clearFraudAlert);
+  const alert = useSecurityStore((s) => s.fraudAlert);
 
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -44,6 +45,22 @@ export default function FraudAlertScreen() {
     router.push('/(consumer)/security/devices');
   };
 
+  if (!alert) {
+    return (
+      <View style={styles.wrap}>
+        <ScreenHeader title="Security Alert" />
+        <View style={styles.body}>
+          <Icon name="shield-checkmark" size={56} color={Colors.success} />
+          <Text style={styles.title}>No active alerts</Text>
+          <Text style={styles.explanation}>We haven't detected any payment activity that needs your review.</Text>
+          <View style={styles.actions}>
+            <Button label="Back to Security" onPress={() => router.back()} />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrap}>
       <ScreenHeader title="Security Alert" />
@@ -55,9 +72,19 @@ export default function FraudAlertScreen() {
 
         <Text style={styles.title}>Unusual activity flagged</Text>
         <Text style={styles.explanation}>
-          We blocked a payment attempt of ₦45,000 to an unfamiliar merchant from a device we didn't recognize,
-          today at 2:14 PM in Lagos, NG. No funds were moved.
+          We {alert.blocked ? 'blocked' : 'flagged'} a payment of ₦{alert.amountNGN.toLocaleString()} to{' '}
+          {alert.payeeName} at {alert.occurredAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}.
+          {alert.blocked ? ' No funds were moved.' : ' Review it before continuing.'}
         </Text>
+
+        <View style={styles.reasonList}>
+          {alert.reasons.map((reason) => (
+            <View key={reason} style={styles.reasonRow}>
+              <Icon name="alert-circle-outline" size={16} color={Colors.error} />
+              <Text style={styles.reasonText}>{reason}</Text>
+            </View>
+          ))}
+        </View>
 
         <Text style={styles.prompt}>Was this you?</Text>
 
@@ -116,5 +143,20 @@ const styles = StyleSheet.create({
   actions: {
     width: '100%',
     gap: Spacing.md,
+  },
+  reasonList: {
+    alignSelf: 'stretch',
+    gap: Spacing.sm,
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.errorContainer,
+  },
+  reasonRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  reasonText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurface,
   },
 });

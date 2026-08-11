@@ -38,6 +38,10 @@ export default function SuccessScreen() {
     badgeOpacity.value = withDelay(300, withTiming(1, { duration: 300 }));
   }, [ringScale, badgeOpacity]);
 
+  useEffect(() => {
+    if (!transaction) router.replace('/(consumer)');
+  }, [router, transaction]);
+
   const ringStyle = useAnimatedStyle(() => ({ transform: [{ scale: ringScale.value }] }));
   const badgeStyle = useAnimatedStyle(() => ({ opacity: badgeOpacity.value }));
 
@@ -54,7 +58,6 @@ export default function SuccessScreen() {
   };
 
   if (!transaction) {
-    router.replace('/(consumer)');
     return null;
   }
 
