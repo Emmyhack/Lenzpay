@@ -51,6 +51,12 @@ interface SecurityState {
   spentToday: (at?: Date) => number;
   /** Headroom left today. */
   remainingDailyNGN: (at?: Date) => number;
+  /**
+   * The ceiling actually in force, after the rewards tier's uplift. The tier
+   * benefit is applied here rather than by mutating the user's own setting, so
+   * dropping a tier can never silently lower a limit they chose.
+   */
+  effectiveDailyLimitNGN: (tierMultiplier: number) => number;
   clearFraudAlert: () => void;
   raiseFraudAlert: (alert: FraudAlert) => void;
   toggleNewDeviceAlerts: (value: boolean) => void;
@@ -102,6 +108,9 @@ export const useSecurityStore = create<SecurityState>()(
 
   remainingDailyNGN: (at = new Date()) =>
     Math.max(0, get().dailyLimitNGN - get().spentToday(at)),
+
+  effectiveDailyLimitNGN: (tierMultiplier) =>
+    Math.round(get().dailyLimitNGN * Math.max(1, tierMultiplier)),
   clearFraudAlert: () => set({ hasFraudAlert: false, fraudAlert: null }),
   raiseFraudAlert: (fraudAlert) => set({ hasFraudAlert: true, fraudAlert }),
   toggleNewDeviceAlerts: (newDeviceAlerts) => set({ newDeviceAlerts }),

@@ -1,5 +1,6 @@
 import type { CurrencyCode } from '@/types/payment';
 import type { FundingPlan } from '@/types/orchestration';
+import { Treasury as TreasuryConfig } from '@/constants/config';
 import { roundCurrency } from '@/services/money';
 import { collectionCost } from '@/services/orchestration/costs';
 
@@ -271,6 +272,61 @@ export function sustainableCashbackRate(
   if (marginBeforeRewards <= 0) return 0;
 
   return Math.max(0, (marginBeforeRewards * shareOfMargin) / amount);
+}
+
+/**
+ * Cashback actually payable on one payment.
+ *
+ * The headline rate is what we advertise; this is what we can afford. A flat
+ * percentage cannot sit safely on this cost structure, because the structure
+ * is not flat:
+ *
+ *  - EMTL is a ₦50 step at ₦10,000, which collapses the affordable rate from
+ *    ~0.60% to ~0.10% the moment a payment crosses it;
+ *  - the MDR cap stops revenue growing past ~₦500,000 while costs keep going.
+ *
+ * Choosing a single rate low enough for the worst case would pay ₦2 on a
+ * ₦4,500 payment that can comfortably afford ₦25. So the headline rate applies
+ * *up to* a ceiling set by the payment's own margin, and the programme becomes
+ * structurally incapable of paying out more than it earns — no matter how
+ * tiers, fees or levies change later.
+ */
+/**
+ * The model rewards are budgeted against.
+ *
+ * Deliberately more pessimistic than the planning assumption of 5 payments per
+ * sweep: rewards are a promise to the user, so the budget should hold even if
+ * netting performs worse than hoped. Budgeting against the *un-netted* model
+ * would be too far the other way — it says a ₦4,500 payment can fund no
+ * cashback at all, which would gut the programme for the payments it is meant
+ * to reward.
+ */
+export const REWARDS_BUDGET_MODEL: Partial<PricingModel> = {
+  paymentsPerSweep: TreasuryConfig.nettedCollection ? 3 : 1,
+};
+
+export function cashbackForPayment(input: {
+  /** Category rate × tier multiplier. */
+  headlineRate: number;
+  /** Economics with rewards excluded, from `estimateUnitEconomics`. */
+  economicsBeforeRewards: UnitEconomics;
+  /** Points issued on this payment, whose liability is funded first. */
+  points?: number;
+  /** Share of remaining margin the user may receive. */
+  shareOfMargin?: number;
+  model?: Partial<PricingModel>;
+}): number {
+  const model = { ...DEFAULT_PRICING, ...input.model };
+  const { amount, currency, revenue, costs } = input.economicsBeforeRewards;
+  if (amount <= 0) return 0;
+
+  const headline = amount * input.headlineRate;
+
+  const marginBeforeRewards = revenue.total - (costs.total - costs.rewards);
+  const pointsLiability = (input.points ?? 0) * model.pointValue;
+  const budget = (marginBeforeRewards - pointsLiability) * (input.shareOfMargin ?? 0.5);
+
+  return Math.max(0, roundCurrency(Math.min(headline, budget), currency));
 }
 
 /**

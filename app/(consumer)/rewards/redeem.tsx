@@ -7,6 +7,7 @@ import { Slider } from '@/components/ui/Slider';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useRewardsStore } from '@/store/rewards';
+import { REWARD_POINT_VALUE } from '@/mock/data';
 import { redeemPoints } from '@/services/rewards';
 import { showToast } from '@/components/ui/Toast';
 import type { RedemptionMethod } from '@/types/rewards';
@@ -17,7 +18,14 @@ const METHODS: { key: RedemptionMethod; label: string; icon: IconName; subtitle:
   { key: 'bank_transfer', label: 'Bank Transfer', icon: 'business', subtitle: '1-3 business days' },
 ];
 
-const POINTS_PER_NGN = 2; // 2 pts = ₦1
+/**
+ * Redemption uses the same value points are accrued at.
+ *
+ * This was hard-coded at 2 points = ₦1 (₦0.50 a point) while accrual provisions
+ * ₦0.05 a point — every redemption paid out ten times what was set aside. One
+ * constant now drives both, and `rewards-economics.test.ts` asserts they agree.
+ */
+const NGN_PER_POINT = REWARD_POINT_VALUE;
 
 export default function RedeemScreen() {
   const router = useRouter();
@@ -29,7 +37,7 @@ export default function RedeemScreen() {
   const [redeeming, setRedeeming] = useState(false);
 
   const pointsToRedeem = Math.round(points * ratio);
-  const valueNGN = Math.floor(pointsToRedeem / POINTS_PER_NGN);
+  const valueNGN = Math.floor(pointsToRedeem * NGN_PER_POINT);
 
   const handleRedeem = async () => {
     if (pointsToRedeem <= 0) return;

@@ -5,6 +5,7 @@ import { Colors, Spacing, Typography } from '@/constants/theme';
 import { SpinningRing } from '@/components/shared/SpinningRing';
 import { usePaymentStore } from '@/store/payment';
 import { useRewardsStore } from '@/store/rewards';
+import { REWARDS_TIERS } from '@/mock/rewards';
 import { initiatePayment } from '@/services/payments';
 import { MOCK_USER } from '@/mock/data';
 import { evaluatePaymentRisk } from '@/services/fraud';
@@ -46,7 +47,9 @@ export default function ProcessingScreen() {
         payee,
         plan,
         perTransactionLimitNGN: security.perTxnLimitNGN,
-        dailyLimitNGN: security.dailyLimitNGN,
+        dailyLimitNGN: security.effectiveDailyLimitNGN(
+          REWARDS_TIERS.find((t) => t.name === rewardsTier)?.dailyLimitMultiplier ?? 1
+        ),
         spentTodayNGN: security.spentToday(),
         unusualAmountAlertsEnabled: security.unusualAmountAlerts,
       });

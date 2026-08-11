@@ -40,6 +40,8 @@ export interface PlanOptions {
   /** Force a specific source (Manual mode). Bypasses ranking for selection. */
   preferredSourceId?: string;
   maxLegs?: number;
+  /** Rewards-tier FX spread waiver, 0..1 — a real discount, not a label. */
+  spreadDiscount?: number;
 }
 
 export function planPayment(
@@ -60,6 +62,7 @@ export function planPayment(
   const ranked = rankSources(sources, roundedAmount, currency, feed, {
     now,
     lockWindowMs: options.lockWindowMs,
+    spreadDiscount: options.spreadDiscount,
   });
   const eligible = ranked.filter((entry) => entry.eligible);
 
