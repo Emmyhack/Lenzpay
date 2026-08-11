@@ -18,6 +18,10 @@ export interface PaymentRiskInput {
   payee: Payee;
   plan: FundingPlan;
   perTransactionLimitNGN: number;
+  /** Today's ceiling. Enforced against `spentTodayNGN`, not just displayed. */
+  dailyLimitNGN: number;
+  /** Already spent against today's ceiling, from the persisted spend ledger. */
+  spentTodayNGN: number;
   unusualAmountAlertsEnabled: boolean;
 }
 
@@ -28,6 +32,15 @@ export function evaluatePaymentRisk(input: PaymentRiskInput): FraudAlert | null 
 
   if (input.amountNGN > input.perTransactionLimitNGN) {
     reasons.push(`Amount exceeds your ₦${input.perTransactionLimitNGN.toLocaleString()} per-payment limit`);
+  }
+  // The daily limit was previously stored and shown but never counted against,
+  // so it stopped nothing. A limit that does not bind is worse than no limit —
+  // it tells the user they are protected when they are not.
+  if (input.spentTodayNGN + input.amountNGN > input.dailyLimitNGN) {
+    const remaining = Math.max(0, input.dailyLimitNGN - input.spentTodayNGN);
+    reasons.push(
+      `This would exceed your ₦${input.dailyLimitNGN.toLocaleString()} daily limit — ₦${remaining.toLocaleString()} left today`
+    );
   }
   if (input.unusualAmountAlertsEnabled && input.amountNGN >= 100_000) {
     reasons.push('Amount is unusually high');
@@ -50,6 +63,7 @@ export function evaluatePaymentRisk(input: PaymentRiskInput): FraudAlert | null 
     payeeName: input.payee.displayName,
     occurredAt: new Date(),
     reasons,
-    blocked: reasons.some((reason) => reason.includes('exceeds')) || reasons.length >= 2,
+    // A breached limit blocks outright; anything else needs corroboration.
+    blocked: reasons.some((reason) => reason.includes('exceed')) || reasons.length >= 2,
   };
 }

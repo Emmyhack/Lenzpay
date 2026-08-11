@@ -1,5 +1,6 @@
 import type { CurrencyCode } from '@/types/payment';
 import type { FundingPlan } from '@/types/orchestration';
+import { read, write } from '@/services/persistence';
 
 /**
  * Idempotency store (§6.1).
@@ -35,9 +36,40 @@ export type BeginOutcome<T> =
 export class IdempotencyStore<T> {
   private readonly records = new Map<string, IdempotencyRecord<T>>();
   private readonly ttlMs: number;
+  private readonly storageKey: string | null;
 
-  constructor(ttlMs = 24 * 60 * 60 * 1000) {
+  /**
+   * @param storageKey persist under this key.
+   *
+   * An in-memory store forgets every key when the app restarts, so a payment
+   * retried after a crash would execute a second time — exactly the
+   * double-charge this class exists to prevent. Persisting matters most in the
+   * case the store was written for.
+   *
+   * Only *completed* records are written. An `in_flight` record cannot be
+   * trusted across a restart: the process that owned it is gone, so nothing
+   * will ever complete or abandon it, and restoring it would deadlock the key
+   * forever.
+   */
+  constructor(ttlMs = 24 * 60 * 60 * 1000, storageKey: string | null = null) {
     this.ttlMs = ttlMs;
+    this.storageKey = storageKey;
+    if (storageKey) {
+      const saved = read<IdempotencyRecord<T>[]>(storageKey);
+      if (saved) {
+        for (const record of saved) {
+          if (record.status === 'completed') this.records.set(record.key, record);
+        }
+      }
+    }
+  }
+
+  private save(): void {
+    if (!this.storageKey) return;
+    write(
+      this.storageKey,
+      [...this.records.values()].filter((record) => record.status === 'completed')
+    );
   }
 
   begin(key: string, now = Date.now()): BeginOutcome<T> {
@@ -65,6 +97,7 @@ export class IdempotencyStore<T> {
       createdAt: existing?.createdAt ?? now,
       completedAt: now,
     });
+    this.save();
   }
 
   /**
@@ -73,6 +106,7 @@ export class IdempotencyStore<T> {
    */
   abandon(key: string): void {
     this.records.delete(key);
+    this.save();
   }
 
   peek(key: string): IdempotencyRecord<T> | undefined {

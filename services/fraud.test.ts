@@ -57,6 +57,8 @@ test('ordinary payments pass without creating a security alert', () => {
     payee,
     plan: plan(5_000),
     perTransactionLimitNGN: 200_000,
+    dailyLimitNGN: 10_000_000,
+    spentTodayNGN: 0,
     unusualAmountAlertsEnabled: true,
   }), null);
 });
@@ -67,6 +69,8 @@ test('a payment over the configured limit is blocked before execution', () => {
     payee,
     plan: plan(250_000),
     perTransactionLimitNGN: 200_000,
+    dailyLimitNGN: 10_000_000,
+    spentTodayNGN: 0,
     unusualAmountAlertsEnabled: false,
   });
   assert.equal(result?.blocked, true);
@@ -79,6 +83,8 @@ test('a five-source waterfall is surfaced as an orchestration risk signal', () =
     payee,
     plan: plan(50_000, 5),
     perTransactionLimitNGN: 200_000,
+    dailyLimitNGN: 10_000_000,
+    spentTodayNGN: 0,
     unusualAmountAlertsEnabled: true,
   });
   assert.match(result?.reasons[0] ?? '', /5 funding sources/);

@@ -67,7 +67,12 @@ export default function SecurityHubScreen() {
         <View style={styles.section}>
           <SectionTitle title="Limits" rightLabel="Edit" onPressRight={() => router.push('/(consumer)/security/limits')} />
           <View style={styles.card}>
-            <LimitRow label="Daily limit" value={`₦${security.dailyLimitNGN.toLocaleString()}`} />
+            {/* Show the headroom, not just the ceiling — a limit the user
+                can't see themselves approaching isn't much of a control. */}
+            <LimitRow
+              label="Daily limit"
+              value={`₦${security.spentToday().toLocaleString()} of ₦${security.dailyLimitNGN.toLocaleString()} used`}
+            />
             <LimitRow label="Per-transaction limit" value={`₦${security.perTxnLimitNGN.toLocaleString()}`} />
             <LimitRow label="Skip-PIN threshold" value="₦500" />
             <LimitRow label="International" value={security.internationalBlocked ? 'Blocked' : 'Allowed'} last />

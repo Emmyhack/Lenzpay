@@ -46,6 +46,8 @@ export default function ProcessingScreen() {
         payee,
         plan,
         perTransactionLimitNGN: security.perTxnLimitNGN,
+        dailyLimitNGN: security.dailyLimitNGN,
+        spentTodayNGN: security.spentToday(),
         unusualAmountAlertsEnabled: security.unusualAmountAlerts,
       });
       if (alert) security.raiseFraudAlert(alert);
@@ -66,6 +68,9 @@ export default function ProcessingScreen() {
       });
 
       if (result.success && result.transaction && result.execution?.ok) {
+        // Count the payment against today's limit. Recorded only on success,
+        // so a blocked or failed attempt never consumes headroom.
+        useSecurityStore.getState().recordSpend(result.transaction.amount);
         useSourcesStore.getState().applySettledTransaction(
           result.transaction.id,
           result.execution.legs

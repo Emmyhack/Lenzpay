@@ -5,7 +5,10 @@
  */
 export const Config = {
   apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://api.lenzpay.app',
-  useMockData: true, // flip to false once services/* hit a real backend
+  // Expo only exposes EXPO_PUBLIC_* variables to application code. Keep this
+  // true for the demo; production must explicitly opt into the real API.
+  useMockData: process.env.EXPO_PUBLIC_USE_MOCK_DATA !== 'false',
+  appEnvironment: process.env.EXPO_PUBLIC_APP_ENV ?? 'development',
   fxPollIntervalMs: 30_000,
   kycPollIntervalMs: 5_000,
 } as const;

@@ -7,6 +7,7 @@ import { executePlan, type ExecutorDeps } from './executor';
 import { Ledger, ledger } from './ledger';
 import { IdempotencyStore } from './idempotency';
 import { Treasury, treasury } from './treasury';
+import { StorageKeys } from '@/services/persistence';
 import { CollectionQueue, collectionQueue, runCollectionSweep, type SweepReport } from './collections';
 import {
   createDevRailRegistry,
@@ -77,7 +78,11 @@ function defaultConfig(): EngineConfig {
     ),
     settlementRail: createMockSettlementRail({ latencyMs: Config.useMockData ? 400 : 0 }),
     ledger,
-    idempotency: new IdempotencyStore<ExecutionResult>(),
+    // Persisted: a retry after a restart must replay, not re-charge.
+    idempotency: new IdempotencyStore<ExecutionResult>(
+      24 * 60 * 60 * 1000,
+      StorageKeys.idempotency
+    ),
     treasury,
     collections: collectionQueue,
   };

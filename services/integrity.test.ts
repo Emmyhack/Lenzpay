@@ -38,6 +38,8 @@ test('the wide-waterfall fraud rule can actually fire at the current leg cap', (
     payee: makePayee(),
     plan,
     perTransactionLimitNGN: 200_000,
+    dailyLimitNGN: 10_000_000,
+    spentTodayNGN: 0,
     unusualAmountAlertsEnabled: false,
   });
 
@@ -51,6 +53,8 @@ test('a single-source payment to a verified payee raises nothing', () => {
     payee: makePayee(),
     plan: planFor([ngnBank(50_000, { id: 'a' })], 4_500),
     perTransactionLimitNGN: 200_000,
+    dailyLimitNGN: 10_000_000,
+    spentTodayNGN: 0,
     unusualAmountAlertsEnabled: false,
   });
 

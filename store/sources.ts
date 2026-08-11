@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { StorageKeys, dateSafeJsonStorage } from '@/services/persistence';
 import type { PaymentSource } from '@/types/payment';
 import { MOCK_SOURCES } from '@/mock/data';
 import type { FundingLeg } from '@/types/orchestration';
@@ -19,7 +21,9 @@ interface SourcesState {
   applySettledTransaction: (transactionId: string, legs: FundingLeg[]) => void;
 }
 
-export const useSourcesStore = create<SourcesState>((set, get) => ({
+export const useSourcesStore = create<SourcesState>()(
+  persist(
+    (set, get) => ({
   sources: MOCK_SOURCES,
   isLoading: false,
   appliedTransactionIds: [],
@@ -63,4 +67,13 @@ export const useSourcesStore = create<SourcesState>((set, get) => ({
       appliedTransactionIds: [...get().appliedTransactionIds, transactionId],
     });
   },
-}));
+    }),
+    {
+      name: StorageKeys.sources,
+      storage: dateSafeJsonStorage,
+      // `isLoading` is a UI flag for an in-flight refresh; persisting it would
+      // restore a spinner that nothing is going to resolve.
+      partialize: ({ isLoading: _ignored, ...rest }) => rest,
+    }
+  )
+);

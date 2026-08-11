@@ -3,6 +3,7 @@ import { DEFAULT_RELIABILITY } from '@/types/payment';
 import type { FundingPlan } from '@/types/orchestration';
 import { Treasury as Limits } from '@/constants/config';
 import { roundCurrency } from '@/services/money';
+import { StorageKeys, read, write } from '@/services/persistence';
 
 /**
  * Settlement float and collection risk (§7 "Reserve/float management").
@@ -133,9 +134,25 @@ function freshnessFactor(source: PaymentSource, now: number, freshnessMs: number
 export class Treasury {
   private readonly limits: TreasuryLimits;
   private readonly exposures = new Map<string, FloatExposure>();
+  private readonly storageKey: string | null;
 
-  constructor(limits: Partial<TreasuryLimits> = {}) {
+  /**
+   * @param storageKey persist exposures under this key. Open exposure is money
+   * owed to the float; forgetting it on restart both loses the debt and resets
+   * the per-user ceiling, so a user could quietly exceed their limit by
+   * relaunching the app.
+   */
+  constructor(limits: Partial<TreasuryLimits> = {}, storageKey: string | null = null) {
     this.limits = { ...DEFAULT_LIMITS, ...limits };
+    this.storageKey = storageKey;
+    if (storageKey) {
+      const saved = read<FloatExposure[]>(storageKey);
+      if (saved) for (const exposure of saved) this.exposures.set(exposure.transactionId, exposure);
+    }
+  }
+
+  private save(): void {
+    if (this.storageKey) write(this.storageKey, [...this.exposures.values()]);
   }
 
   /**
@@ -209,6 +226,7 @@ export class Treasury {
       status: 'open',
     };
     this.exposures.set(input.transactionId, exposure);
+    this.save();
     return exposure;
   }
 
@@ -223,6 +241,7 @@ export class Treasury {
     if (exposure.recovered >= exposure.amount - 1e-9) {
       exposure.status = 'settled';
     }
+    this.save();
   }
 
   /** Note a failed collection attempt; escalates once retries are exhausted. */
@@ -234,11 +253,13 @@ export class Treasury {
     if (exposure.attempts >= this.limits.collectionRetryLimit) {
       exposure.status = 'escalated';
     }
+    this.save();
   }
 
   /** Release an exposure that never actually fronted anything. */
   cancel(transactionId: string): void {
     this.exposures.delete(transactionId);
+    this.save();
   }
 
   exposureFor(transactionId: string): FloatExposure | undefined {
@@ -279,5 +300,5 @@ function refuse(
   return { allowed: false, reason, detail, confidence };
 }
 
-/** Process-wide treasury for the dev/mock build. */
-export const treasury = new Treasury();
+/** The app's treasury. Persisted — see the constructor for why. */
+export const treasury = new Treasury({}, StorageKeys.treasury);

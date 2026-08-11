@@ -404,6 +404,75 @@ did not exist; it now says "Report a problem" and does something real.
 
 ---
 
+---
+
+## ADR-010 — Persistence, and what it means for money
+
+**Status:** accepted
+
+**Decision:** state is persisted to MMKV behind a swappable interface
+(`services/persistence.ts`). UI stores use zustand's `persist`; the engine's
+money-critical state persists directly.
+
+**Why this was urgent rather than tidy.** Everything lived in memory.
+`react-native-mmkv` was a dependency and entirely unused. Three of the losses
+were money, not preferences:
+
+- **Collection queue.** Netting defers collection, so an uncollected leg is
+  money the float has *already paid out*. Losing the queue on relaunch means it
+  is never recovered — straight revenue loss, and the more successful netting
+  is, the more there is to lose.
+- **Float exposure.** Forgetting it loses the debt *and* resets the per-user
+  ceiling, so a user could exceed their limit by relaunching the app.
+- **Idempotency keys.** An in-memory store forgets every key on restart, so a
+  payment retried after a crash executes twice — precisely the double-charge
+  the store exists to prevent. It failed hardest in the case it was written for.
+
+**Two decisions worth keeping:**
+
+*Only completed idempotency records are restored.* An `in_flight` record cannot
+be trusted across a restart — the process that owned it is gone, so nothing will
+ever complete or abandon it, and restoring it would deadlock that key forever.
+
+*Dates are tagged explicitly in the codec.* `JSON.stringify` calls
+`Date.prototype.toJSON` **before** the replacer runs, so a naive
+`value instanceof Date` check never fires and dates silently rehydrate as
+strings. `PaymentSource.lastSynced` feeds `collectionConfidence`, which calls
+`.getTime()` — that would have thrown, or worse, scored every restored source
+as infinitely stale. The codec reads `this[key]` from a non-arrow replacer to
+reach the original. Pinned by test; the first implementation had the bug.
+
+**Not persisted, deliberately:** in-flight fraud alerts (session-scoped —
+restoring one confronts the user with a warning they already handled) and
+`isLoading` (would restore a spinner nothing resolves). The PIN was already in
+`expo-secure-store`, which is hardware-backed, and stays there.
+
+---
+
+## ADR-011 — The daily limit now binds
+
+**Status:** accepted
+
+**Decision:** spend accumulates against a persisted daily ledger that rolls
+over at local midnight, and `evaluatePaymentRisk` blocks a payment that would
+breach it.
+
+**Why:** `dailyLimitNGN` was stored, displayed and editable, and nothing ever
+counted against it. A ₦500,000 daily limit did not stop ₦5,000,000 of payments.
+A limit that does not bind is worse than no limit — it tells the user they are
+protected when they are not.
+
+Spend is recorded only on **successful settlement**, so a blocked or failed
+attempt never consumes headroom. Reads roll the day over implicitly, so a stale
+counter from yesterday can never count against today. The security screen now
+shows *used of limit* rather than the ceiling alone — a limit you cannot watch
+yourself approach is a weak control.
+
+This depends on ADR-010: a daily limit that resets whenever the app restarts
+would be trivially defeated.
+
+---
+
 ## Launch-readiness blockers
 
 Encoded as data in `providers.ts` (`outstandingBlockers()`) rather than left in

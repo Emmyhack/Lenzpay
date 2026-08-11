@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { StorageKeys, dateSafeJsonStorage } from '@/services/persistence';
 import type { RewardsTierName } from '@/types/rewards';
 
 interface RewardsState {
@@ -22,7 +24,9 @@ function tierForPoints(points: number): RewardsTierName {
   return TIER_THRESHOLDS.find((t) => points >= t.minPoints)?.tier ?? 'Bronze';
 }
 
-export const useRewardsStore = create<RewardsState>((set, get) => ({
+export const useRewardsStore = create<RewardsState>()(
+  persist(
+    (set, get) => ({
   points: 3_240,
   tier: 'Gold',
   lifetimeCashbackNGN: 1_620,
@@ -53,4 +57,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       const newPoints = Math.max(0, state.points - points);
       return { points: newPoints, tier: tierForPoints(newPoints) };
     }),
-}));
+    }),
+    { name: StorageKeys.rewards, storage: dateSafeJsonStorage }
+  )
+);

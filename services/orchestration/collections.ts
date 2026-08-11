@@ -2,6 +2,7 @@ import type { CurrencyCode, PaymentSource } from '@/types/payment';
 import type { FundingLeg } from '@/types/orchestration';
 import { Treasury as TreasuryConfig } from '@/constants/config';
 import { roundCurrency } from '@/services/money';
+import { StorageKeys, read, write } from '@/services/persistence';
 import { collectionCost, nettingSaving } from './costs';
 import { nextId } from './ids';
 import { DEFAULT_HOLD_TTL_MS, type RailRegistry } from './rails';
@@ -76,6 +77,25 @@ export interface SweepReport {
 
 export class CollectionQueue {
   private readonly items = new Map<string, CollectionItem>();
+  private readonly storageKey: string | null;
+
+  /**
+   * @param storageKey persist under this key. Null keeps the queue in memory,
+   * which is what tests want. The app's shared queue always persists: an
+   * uncollected leg is money the float has already paid out, and losing it on
+   * a restart means it is never recovered.
+   */
+  constructor(storageKey: string | null = null) {
+    this.storageKey = storageKey;
+    if (storageKey) {
+      const saved = read<CollectionItem[]>(storageKey);
+      if (saved) for (const item of saved) this.items.set(item.id, item);
+    }
+  }
+
+  private save(): void {
+    if (this.storageKey) write(this.storageKey, [...this.items.values()]);
+  }
 
   /** Queue a leg for later collection. The payee is already paid. */
   enqueue(input: {
@@ -98,6 +118,7 @@ export class CollectionQueue {
       status: 'pending',
     };
     this.items.set(item.id, item);
+    this.save();
     return item;
   }
 
@@ -161,6 +182,7 @@ export class CollectionQueue {
       item.status = 'collected';
       item.attempts += 1;
     }
+    this.save();
   }
 
   markFailed(itemIds: string[], reason: string, retryLimit: number): void {
@@ -172,6 +194,7 @@ export class CollectionQueue {
       // Stays pending so the next sweep retries it, until retries run out.
       item.status = item.attempts >= retryLimit ? 'escalated' : 'pending';
     }
+    this.save();
   }
 }
 
@@ -270,5 +293,5 @@ export async function runCollectionSweep(
   return report;
 }
 
-/** Process-wide queue for the dev/mock build. */
-export const collectionQueue = new CollectionQueue();
+/** The app's queue. Persisted — see the constructor for why. */
+export const collectionQueue = new CollectionQueue(StorageKeys.collections);
