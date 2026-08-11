@@ -358,9 +358,28 @@ The token wins because every CTA, badge, chart accent and focus state already
 uses it — changing the token would mean recolouring the entire product to match
 one asset.
 
-**Outstanding:** `assets/icon.png`, `splash-icon.png` and the Android adaptive
-icon are the outliers and need regenerating in mint. That needs a design tool,
-not code.
+**Done.** The assets were recoloured in place: `icon.png`, `favicon.png`,
+`splash-icon.png` and `android-icon-foreground.png` now carry `#34fea0`.
+
+No design tool was needed — the glyphs already existed, so this was a recolour
+rather than a redraw. The method matters for anyone repeating it:
+
+- Accent coverage per pixel is derived from `g − b`, which separates the lime
+  accent (201) from both the plate (−3) and the white "Lenz" (0). That is what
+  lets the accent change without touching the white half of the wordmark.
+- On the opaque icons antialiasing lives in RGB, so edge pixels are recomposed
+  as `plate + coverage × mint`. On the transparent assets coverage lives in the
+  alpha channel, so RGB is shifted and alpha preserved.
+- Naively swapping exact-match pixels would have left lime fringing on every
+  glyph edge. Verified afterwards: zero residual lime pixels, white pixel count
+  unchanged, and all four files got smaller.
+
+`android-icon-background.png` (solid plate) and `android-icon-monochrome.png`
+(single-colour by definition) carry no accent and were correctly left alone.
+
+The icon plate remains `#1c2326` while the app canvas is `#0e0e0f`. That is
+deliberate — a home-screen icon is its own surface, and the splash background
+was already aligned to the canvas separately.
 
 ---
 
