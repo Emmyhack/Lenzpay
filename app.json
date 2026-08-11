@@ -38,7 +38,7 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#1c2326"
+          "backgroundColor": "#0e0e0f"
         }
       ],
       "expo-camera",

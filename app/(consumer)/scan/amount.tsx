@@ -27,11 +27,17 @@ const MANUAL_MERCHANT: Merchant = {
 export default function AmountScreen() {
   const router = useRouter();
   const storeMerchant = usePaymentStore((s) => s.merchant);
+  const payee = usePaymentStore((s) => s.payee);
+  const fixedAmount = usePaymentStore((s) => s.fixedAmount);
   const setAmount = usePaymentStore((s) => s.setAmount);
   const { data: rates } = useFXRates();
-  const [raw, setRaw] = useState('');
+  const [raw, setRaw] = useState(fixedAmount ? String(fixedAmount) : '');
 
   const merchant = storeMerchant ?? MANUAL_MERCHANT;
+  // The resolved payee is the authority on who is being paid; the merchant
+  // record only supplies display extras like category and verification.
+  const payeeName = payee?.displayName ?? merchant.name;
+  const isVerified = payee?.isVerified ?? merchant.isVerified;
   const amountNGN = raw ? Number(raw) : 0;
 
   const equivalents = useMemo(() => {
@@ -62,8 +68,8 @@ export default function AmountScreen() {
         <View style={styles.merchantIconWrap}>
           <Icon name={CATEGORY_ICON[merchant.category] ?? CATEGORY_ICON.other} size={14} color={Colors.onSurfaceVariant} />
         </View>
-        <Text style={styles.merchantName}>{merchant.name}</Text>
-        {merchant.isVerified ? <Badge kind="VERIFIED" /> : null}
+        <Text style={styles.merchantName}>{payeeName}</Text>
+        {isVerified ? <Badge kind="VERIFIED" /> : null}
       </View>
 
       <View style={styles.inputSection}>

@@ -1,4 +1,6 @@
 import type { IconName } from '@/components/ui/Icon';
+// Type-only, so the cycle with orchestration.ts is erased at build time.
+import type { FundingLeg } from './orchestration';
 
 export type CurrencyCode = 'NGN' | 'USD' | 'GBP' | 'EUR' | 'BTC' | 'USDT' | 'ETH';
 export type SourceType = 'bank' | 'wallet' | 'usd' | 'crypto';
@@ -130,4 +132,16 @@ export interface Transaction {
   timestamp: Date;
   status: 'completed' | 'pending' | 'failed';
   txnRef: string;
+
+  /**
+   * Per-account breakdown, when the transaction went through the orchestration
+   * engine (§6.2). A `sourceLabel` of "Smart Split (2 sources)" is a summary,
+   * not a record — this is what makes a split payment auditable and a per-leg
+   * dispute possible.
+   */
+  legs?: FundingLeg[];
+  /** Conversion cost across all legs, in settlement currency. */
+  totalFees?: number;
+  /** Legs the float has not yet recovered. Payee is paid regardless. */
+  pendingCollection?: FundingLeg[];
 }

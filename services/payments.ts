@@ -75,6 +75,11 @@ export async function initiatePayment(
       timestamp: new Date(execution.settledAt),
       status: 'completed',
       txnRef: execution.transactionId.toUpperCase().replace('TXN_', 'LNZ-'),
+      // Carry the engine's per-leg record onto the transaction so the receipt
+      // and the history detail screen can show what actually funded this.
+      legs: execution.legs,
+      totalFees: plan.totalFees,
+      pendingCollection: execution.uncollectedLegs,
     },
   };
 }

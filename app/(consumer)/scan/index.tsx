@@ -1,56 +1,90 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { QRViewport } from '@/components/scan/QRViewport';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { showToast } from '@/components/ui/Toast';
 import { usePaymentStore } from '@/store/payment';
-import { MOCK_MERCHANT, CATEGORY_ICON } from '@/mock/data';
-import type { Merchant } from '@/types/payment';
+import { buildPaymentQR, resolvePayee } from '@/services/payee';
+import { mockPayeeDirectory } from '@/mock/payees';
+import { CATEGORY_ICON } from '@/mock/data';
 
-const RECENT_MERCHANTS: Merchant[] = [
-  MOCK_MERCHANT,
-  {
-    id: 'mkt_coffee_001',
-    name: 'Coffee & Co.',
-    category: 'food',
-    isVerified: true,
-    location: 'Lagos, NG',
-    acceptedCurrencies: ['NGN', 'USD'],
-  },
+/**
+ * Recents are resolved through the same path a camera scan takes, rather than
+ * shortcutting straight into the store. That keeps one code path to reason
+ * about — and it is the only way to exercise scanning on a simulator, which
+ * has no camera.
+ */
+const RECENT_PAYEES: { id: string; name: string; category: string }[] = [
+  { id: 'mkt_bolt_001', name: 'Bolt Driver — Emeka', category: 'transport' },
+  { id: 'mkt_coffee_001', name: 'Coffee & Co.', category: 'food' },
+  { id: 'mch_001', name: 'Emeka’s Kitchen', category: 'food' },
 ];
 
 export default function ScanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
-  const setMerchant = usePaymentStore((s) => s.setMerchant);
+  const setPayee = usePaymentStore((s) => s.setPayee);
   const [torchOn, setTorchOn] = useState(false);
+  const [isFocused, setIsFocused] = useState(true);
   const hasScanned = useRef(false);
 
-  const goToMerchant = useCallback(
-    (merchant: Merchant) => {
-      setMerchant(merchant);
-      router.push('/(consumer)/scan/merchant');
+  // The scan screen stays mounted underneath the rest of the payment flow, so
+  // without this the camera keeps running — and keeps firing scans — while the
+  // user is on the amount, source, or confirm screens.
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      hasScanned.current = false;
+      return () => {
+        setIsFocused(false);
+        setTorchOn(false);
+      };
+    }, [])
+  );
+
+  /** Shared by the camera and the recents list — one resolution path. */
+  const acceptPayload = useCallback(
+    async (payload: string) => {
+      const resolution = await resolvePayee({ type: 'qr', value: payload }, mockPayeeDirectory);
+
+      if (!resolution.ok) {
+        showToast('error', "Couldn't read this code", resolution.reason);
+        return false;
+      }
+
+      const { payee, fixedAmount } = resolution;
+      setPayee(payee, fixedAmount);
+
+      // A merchant-pinned amount skips the amount step entirely — the price is
+      // the merchant's to set, not the payer's.
+      router.push(fixedAmount ? '/(consumer)/scan/source' : '/(consumer)/scan/amount');
+      return true;
     },
-    [setMerchant, router]
+    [setPayee, router]
   );
 
   const handleBarcodeScanned = useCallback(
-    (_result: BarcodeScanningResult) => {
+    async (result: BarcodeScanningResult) => {
       if (hasScanned.current) return;
       hasScanned.current = true;
-      // Real merchant resolution would look up _result.data against the
-      // merchant directory; mock mode just routes to the demo merchant.
-      goToMerchant(MOCK_MERCHANT);
+
+      // §3.3 — a code that doesn't decode, or resolves to a payee with no
+      // verifiable settlement destination, must not become a payment.
+      await acceptPayload(result.data);
+
+      // Re-arm either way: a rejected code should be re-scannable, and a
+      // successful one should work again if the user comes back.
       setTimeout(() => {
         hasScanned.current = false;
       }, 2000);
     },
-    [goToMerchant]
+    [acceptPayload]
   );
 
   if (!permission) {
@@ -72,7 +106,7 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.wrap}>
-      <QRViewport onScanned={handleBarcodeScanned} torchOn={torchOn} />
+      <QRViewport onScanned={handleBarcodeScanned} active={isFocused} torchOn={torchOn} />
 
       <View style={[styles.topBar, { top: insets.top + Spacing.lg }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Go back">
@@ -91,7 +125,7 @@ export default function ScanScreen() {
 
       <View style={styles.bottomOverlay}>
         <TouchableOpacity
-          onPress={() => router.push('/(consumer)/scan/amount')}
+          onPress={() => router.push('/(consumer)/scan/payee')}
           style={styles.manualButton}
           accessibilityRole="button"
         >
@@ -100,15 +134,18 @@ export default function ScanScreen() {
         </TouchableOpacity>
 
         <Text style={styles.recentLabel}>Recent Merchants</Text>
-        {RECENT_MERCHANTS.map((merchant) => (
-          <View key={merchant.id} style={styles.recentRow}>
+        {RECENT_PAYEES.map((recent) => (
+          <View key={recent.id} style={styles.recentRow}>
             <View style={styles.recentIconWrap}>
-              <Icon name={CATEGORY_ICON[merchant.category] ?? CATEGORY_ICON.other} size={14} color={Colors.onSurface} />
+              <Icon name={CATEGORY_ICON[recent.category] ?? CATEGORY_ICON.other} size={14} color={Colors.onSurface} />
             </View>
             <Text style={styles.recentName} numberOfLines={1}>
-              {merchant.name}
+              {recent.name}
             </Text>
-            <TouchableOpacity onPress={() => goToMerchant(merchant)} style={styles.payPill}>
+            <TouchableOpacity
+              onPress={() => acceptPayload(buildPaymentQR({ payeeId: recent.id }))}
+              style={styles.payPill}
+            >
               <Text style={styles.payPillText}>Pay</Text>
             </TouchableOpacity>
           </View>

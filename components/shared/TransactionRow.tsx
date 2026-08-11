@@ -8,18 +8,35 @@ import type { Transaction } from '@/types/payment';
 interface TransactionRowProps {
   transaction: Transaction;
   onPress?: () => void;
+  /** Append the time of day to the meta line — useful in date-grouped lists. */
+  showTime?: boolean;
+  /** Hairline above the row, for rows grouped inside a card. */
+  divided?: boolean;
 }
 
-export function TransactionRow({ transaction, onPress }: TransactionRowProps) {
+export function TransactionRow({
+  transaction,
+  onPress,
+  showTime = false,
+  divided = false,
+}: TransactionRowProps) {
   const isCredit = transaction.direction === 'credit';
   const amountColor = isCredit ? Colors.success : Colors.onSurface;
   const amountPrefix = isCredit ? '+' : '-';
+
+  const time = showTime
+    ? transaction.timestamp.toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : null;
+  const meta = time ? `${transaction.sourceLabel} · ${time}` : transaction.sourceLabel;
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
-      style={styles.row}
+      style={[styles.row, divided && styles.divided]}
       accessibilityRole={onPress ? 'button' : undefined}
     >
       <View style={styles.iconWrap}>
@@ -30,7 +47,7 @@ export function TransactionRow({ transaction, onPress }: TransactionRowProps) {
           {transaction.merchantName}
         </Text>
         <Text style={styles.meta} numberOfLines={1}>
-          {transaction.sourceLabel}
+          {meta}
         </Text>
       </View>
       <View style={styles.right}>
@@ -46,6 +63,10 @@ export function TransactionRow({ transaction, onPress }: TransactionRowProps) {
 }
 
 const styles = StyleSheet.create({
+  divided: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.outlineVariant,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

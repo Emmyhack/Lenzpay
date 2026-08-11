@@ -1,4 +1,5 @@
 import type { PaymentSource, Transaction, Merchant } from '@/types/payment';
+import type { FundingLeg } from '@/types/orchestration';
 import type { User } from '@/types/user';
 import type { IconName } from '@/components/ui/Icon';
 
@@ -100,6 +101,44 @@ export const MOCK_SOURCES: PaymentSource[] = [
   },
 ];
 
+/**
+ * Builds a funding leg for the mock history. Mirrors what the orchestration
+ * engine produces, so the detail screen renders the same shape in mock mode as
+ * it will against real executions.
+ */
+function mockLeg(
+  sourceId: string,
+  amountInSettlement: number,
+  options: { amountInSource?: number; rate?: number; fee?: number } = {}
+): FundingLeg {
+  const source = MOCK_SOURCES.find((s) => s.id === sourceId)!;
+  const converting = source.rawCurrency !== 'NGN';
+  const rate = options.rate ?? 1;
+
+  return {
+    id: `leg_${sourceId}_${amountInSettlement}`,
+    sourceId,
+    source,
+    amountInSourceCurrency: options.amountInSource ?? amountInSettlement,
+    sourceCurrency: source.rawCurrency,
+    amountInSettlementCurrency: amountInSettlement,
+    settlementCurrency: 'NGN',
+    feeInSettlementCurrency: options.fee ?? 0,
+    quote: {
+      id: `q_${sourceId}`,
+      from: source.rawCurrency,
+      to: 'NGN',
+      rate,
+      feeRate: converting ? 0.009 : 0,
+      flatFee: converting ? 50 : 0,
+      provider: converting ? 'fx_partner' : 'none',
+      quotedAt: Date.now(),
+      expiresAt: converting ? Date.now() + 45_000 : Number.POSITIVE_INFINITY,
+    },
+    status: 'captured',
+  };
+}
+
 export const MOCK_TRANSACTIONS: Transaction[] = [
   {
     id: 'txn_001',
@@ -114,6 +153,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     timestamp: new Date(),
     status: 'completed',
     txnRef: 'LNZ-20250407-001',
+    legs: [mockLeg('src_access_001', 2_800)],
+    totalFees: 0,
   },
   {
     id: 'txn_002',
@@ -128,6 +169,13 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     timestamp: new Date(Date.now() - 86_400_000),
     status: 'completed',
     txnRef: 'LNZ-20250406-002',
+    // Neither NGN account covered ₦18,400 alone, so the engine scraped across
+    // a bank and the USD account.
+    legs: [
+      mockLeg('src_access_001', 3_000),
+      mockLeg('src_grey_001', 15_400, { amountInSource: 10.06, rate: 1_550, fee: 193 }),
+    ],
+    totalFees: 193,
   },
   {
     id: 'txn_003',
@@ -143,6 +191,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     timestamp: new Date(Date.now() - 86_400_000),
     status: 'completed',
     txnRef: 'LNZ-20250406-003',
+    legs: [mockLeg('src_grey_001', 4_500, { amountInSource: 2.94, rate: 1_550, fee: 57 })],
+    totalFees: 57,
   },
 ];
 
