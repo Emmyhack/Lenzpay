@@ -1,161 +1,341 @@
 import { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import { useEffect } from 'react';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
-import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useRewardsStore } from '@/store/rewards';
-import { CASHBACK_RATES, CATEGORY_ICON } from '@/mock/data';
+import { CASHBACK_RATES, CATEGORY_ICON, REWARD_POINT_VALUE } from '@/mock/data';
 import { REWARDS_TIERS, TIER_ICON } from '@/mock/rewards';
 import { fetchTransactions } from '@/services/payments';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const CATEGORY_LABEL: Record<string, string> = {
   transport: 'Transport',
-  food: 'Food',
+  food: 'Food & drink',
   shopping: 'Shopping',
   crypto: 'Crypto',
-  other: 'Other',
+  other: 'Everything else',
 };
+
+/**
+ * Rates are fractions of a percent, so `toFixed(1)` collapsed three of the five
+ * categories to an identical "0.1%". Two decimals is the minimum that keeps
+ * them distinguishable.
+ */
+function formatRate(rate: number): string {
+  const percent = rate * 100;
+  return `${percent.toFixed(percent < 1 ? 2 : 1)}%`;
+}
 
 export default function RewardsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const { points, tier, lifetimeCashbackNGN } = useRewardsStore();
-  const { data: transactions } = useQuery({ queryKey: ['transactions', 'all'], queryFn: fetchTransactions });
+  const { data: transactions } = useQuery({
+    queryKey: ['transactions', 'all'],
+    queryFn: fetchTransactions,
+  });
 
   const currentTier = REWARDS_TIERS.find((t) => t.name === tier) ?? REWARDS_TIERS[0];
+  const nextTier = REWARDS_TIERS.find((t) => t.minPoints > currentTier.minPoints);
+
   const progress = useMemo(() => {
     if (!currentTier.nextTierPoints) return 1;
     const span = currentTier.nextTierPoints - currentTier.minPoints;
-    return Math.min(1, (points - currentTier.minPoints) / span);
+    return Math.min(1, Math.max(0, (points - currentTier.minPoints) / span));
   }, [currentTier, points]);
 
-  const pointsHistory = (transactions ?? []).filter((t) => t.pointsEarned > 0).slice(0, 5);
+  /** What the balance is actually worth — the number the user came for. */
+  const pointsValueNGN = Math.floor(points * REWARD_POINT_VALUE);
+
+  const bar = useSharedValue(0);
+  useEffect(() => {
+    bar.value = reduceMotion
+      ? progress
+      : withTiming(progress, { duration: 700, easing: Easing.out(Easing.cubic) });
+  }, [progress, reduceMotion, bar]);
+  const barStyle = useAnimatedStyle(() => ({ width: `${bar.value * 100}%` }));
+
+  const pointsHistory = (transactions ?? []).filter((t) => t.pointsEarned > 0).slice(0, 4);
 
   return (
     <View style={styles.wrap}>
-      <ScreenHeader title="Rewards" />
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Value first. A points balance on its own is a number the user has to
+            translate; showing what it is worth is the whole point of a
+            rewards programme. */}
+        <Text style={styles.eyebrow}>Your points are worth</Text>
+        <Text style={styles.value}>₦{pointsValueNGN.toLocaleString()}</Text>
+        <Text style={styles.subValue}>
+          {points.toLocaleString()} pts · ₦{REWARD_POINT_VALUE.toFixed(2)} each
+        </Text>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <View style={styles.tierBadgeRow}>
-            <Icon name={TIER_ICON[tier].name} size={16} color={TIER_ICON[tier].color} />
-            <Text style={styles.tierBadge}>{tier}</Text>
+        <View style={styles.actions}>
+          <Button
+            label="Redeem"
+            onPress={() => router.push('/(consumer)/rewards/redeem')}
+            disabled={pointsValueNGN < 1}
+            fullWidth={false}
+            style={styles.redeemButton}
+          />
+          <TouchableOpacity
+            style={styles.tierPill}
+            onPress={() => router.push('/(consumer)/rewards/tiers')}
+            accessibilityRole="button"
+            accessibilityLabel={`${tier} tier, view benefits`}
+          >
+            <Icon name={TIER_ICON[tier].name} size={15} color={TIER_ICON[tier].color} />
+            <Text style={styles.tierPillText}>{tier}</Text>
+            <Icon name="chevron-forward" size={13} color={Colors.onSurfaceMuted} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Progress states what the next tier actually gives, not just that one
+            exists — "600 pts away" is only motivating if you know what for. */}
+        <View style={styles.progressCard}>
+          <View style={styles.progressHead}>
+            <Text style={styles.progressTier}>{tier}</Text>
+            {nextTier ? <Text style={styles.progressTierNext}>{nextTier.name}</Text> : null}
           </View>
-          <Text style={styles.pointsLabel}>POINTS</Text>
-          <Text style={styles.points}>{points.toLocaleString()}</Text>
-          <Text style={styles.cashback}>₦{lifetimeCashbackNGN.toLocaleString()} lifetime cashback</Text>
 
-          {currentTier.nextTierPoints ? (
-            <View style={styles.progressSection}>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-              </View>
-              <Text style={styles.progressLabel}>
-                {(currentTier.nextTierPoints - points).toLocaleString()} pts to next tier
-              </Text>
-            </View>
+          <View style={styles.progressTrack}>
+            <Animated.View style={[styles.progressFill, barStyle]} />
+          </View>
+
+          {nextTier && currentTier.nextTierPoints ? (
+            <Text style={styles.progressLabel}>
+              <Text style={styles.progressStrong}>
+                {(currentTier.nextTierPoints - points).toLocaleString()} pts
+              </Text>{' '}
+              to {nextTier.name} — {nextTier.cashbackMultiplier}× cashback and{' '}
+              {Math.round(nextTier.fxSpreadDiscount * 100)}% off FX spread
+            </Text>
           ) : (
             <View style={styles.topTierRow}>
               <Icon name="sparkles" size={13} color={Colors.warning} />
-              <Text style={[styles.progressLabel, { marginTop: 0 }]}>You've reached the top tier</Text>
+              <Text style={styles.progressLabel}>Top tier — every benefit unlocked</Text>
             </View>
           )}
         </View>
 
+        {/* Benefits are stated as live facts because they now are: the
+            multiplier is applied at settlement, the FX discount is quoted into
+            the rate, and the limit uplift is enforced by the risk check. */}
         <View style={styles.section}>
-          <SectionTitle title="Cashback Rates" rightLabel="Tier benefits" onPressRight={() => router.push('/(consumer)/rewards/tiers')} padded />
-          <View style={styles.rateGrid}>
-            {Object.entries(CASHBACK_RATES).map(([key, rate]) => (
-              <View key={key} style={styles.rateCard}>
-                <Text style={styles.rateLabel}>{CATEGORY_LABEL[key] ?? key}</Text>
-                <Text style={styles.rateValue}>{(rate * 100).toFixed(1)}%</Text>
-              </View>
-            ))}
+          <SectionTitle
+            title={`Active as ${tier}`}
+            rightLabel="All tiers"
+            onPressRight={() => router.push('/(consumer)/rewards/tiers')}
+            padded
+          />
+          <View style={styles.benefitRow}>
+            <Benefit
+              icon="cash"
+              value={`${currentTier.cashbackMultiplier}×`}
+              label="cashback"
+            />
+            <Benefit
+              icon="swap-horizontal"
+              value={`${Math.round(currentTier.fxSpreadDiscount * 100)}%`}
+              label="off FX spread"
+              muted={currentTier.fxSpreadDiscount === 0}
+            />
+            <Benefit
+              icon="trending-up"
+              value={`${currentTier.dailyLimitMultiplier}×`}
+              label="daily limit"
+              muted={currentTier.dailyLimitMultiplier === 1}
+            />
           </View>
         </View>
 
         <View style={styles.section}>
-          <SectionTitle title="Points History" padded />
-          {pointsHistory.length > 0 ? (
-            pointsHistory.map((txn) => (
-              <View key={txn.id} style={styles.historyRow}>
-                <View style={styles.historyIconWrap}>
-                  <Icon name={CATEGORY_ICON[txn.category] ?? CATEGORY_ICON.other} size={16} color={Colors.onSurfaceVariant} />
+          <SectionTitle title="Cashback by category" padded />
+          <Text style={styles.sectionNote}>
+            Up to these rates at your {currentTier.cashbackMultiplier}× {tier} multiplier. Very
+            large payments earn a little less, since fees on them are capped.
+          </Text>
+          <View style={styles.rateList}>
+            {Object.entries(CASHBACK_RATES).map(([key, rate]) => {
+              const effective = rate * currentTier.cashbackMultiplier;
+              return (
+                <View key={key} style={styles.rateRow}>
+                  <View style={styles.rateIcon}>
+                    <Icon
+                      name={CATEGORY_ICON[key] ?? CATEGORY_ICON.other}
+                      size={15}
+                      color={Colors.onSurfaceVariant}
+                    />
+                  </View>
+                  <Text style={styles.rateLabel}>{CATEGORY_LABEL[key] ?? key}</Text>
+                  {currentTier.cashbackMultiplier > 1 ? (
+                    <Text style={styles.rateBase}>{formatRate(rate)}</Text>
+                  ) : null}
+                  <Text style={styles.rateValue}>{formatRate(effective)}</Text>
                 </View>
-                <View style={styles.historyInfo}>
-                  <Text style={styles.historyName}>{txn.merchantName}</Text>
-                  <Text style={styles.historyDate}>{txn.timestamp.toLocaleDateString()}</Text>
-                </View>
-                <Text style={styles.historyPoints}>+{txn.pointsEarned} pts</Text>
-              </View>
-            ))
-          ) : (
-            <EmptyState icon="star-outline" title="No points yet" message="Points show up here after your first payment." />
-          )}
+              );
+            })}
+          </View>
         </View>
 
-        <View style={styles.footer}>
-          <Button label="Redeem Points" trailingArrow onPress={() => router.push('/(consumer)/rewards/redeem')} disabled={points === 0} />
+        <View style={styles.section}>
+          <SectionTitle
+            title="Recent earnings"
+            rightLabel={lifetimeCashbackNGN > 0 ? `₦${lifetimeCashbackNGN.toLocaleString()} lifetime` : undefined}
+            padded
+          />
+          {pointsHistory.length > 0 ? (
+            <View style={styles.historyList}>
+              {pointsHistory.map((txn, index) => (
+                <View key={txn.id} style={[styles.historyRow, index > 0 && styles.historyDivided]}>
+                  <View style={styles.historyIconWrap}>
+                    <Icon
+                      name={CATEGORY_ICON[txn.category] ?? CATEGORY_ICON.other}
+                      size={15}
+                      color={Colors.onSurfaceVariant}
+                    />
+                  </View>
+                  <View style={styles.historyInfo}>
+                    <Text style={styles.historyName} numberOfLines={1}>
+                      {txn.merchantName}
+                    </Text>
+                    <Text style={styles.historyDate}>
+                      ₦{txn.amount.toLocaleString()} ·{' '}
+                      {txn.timestamp.toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </Text>
+                  </View>
+                  <View style={styles.historyRight}>
+                    <Text style={styles.historyPoints}>+{txn.pointsEarned} pts</Text>
+                    {txn.cashbackNGN > 0 ? (
+                      <Text style={styles.historyCash}>
+                        ₦{txn.cashbackNGN.toLocaleString()} back
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <EmptyState
+              icon="star-outline"
+              title="No points yet"
+              message="Points land here after your first payment."
+            />
+          )}
         </View>
       </ScrollView>
     </View>
   );
 }
 
+function Benefit({
+  icon,
+  value,
+  label,
+  muted = false,
+}: {
+  icon: Parameters<typeof Icon>[0]['name'];
+  value: string;
+  label: string;
+  muted?: boolean;
+}) {
+  return (
+    <View style={[styles.benefit, muted && styles.benefitMuted]}>
+      <Icon name={icon} size={16} color={muted ? Colors.onSurfaceMuted : Colors.primary} />
+      <Text style={[styles.benefitValue, muted && styles.benefitValueMuted]}>{value}</Text>
+      <Text style={styles.benefitLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  wrap: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    paddingBottom: Spacing.xxxl,
-  },
-  hero: {
-    marginHorizontal: Spacing.xl,
-    backgroundColor: Colors.surfaceContainerLow,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.primary + '30',
-    padding: Spacing.xl,
-    alignItems: 'center',
-  },
-  tierBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  tierBadge: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
-    color: Colors.onSurface,
-  },
-  pointsLabel: {
+  wrap: { flex: 1, backgroundColor: Colors.background },
+  content: { paddingBottom: Spacing.xxxl },
+
+  eyebrow: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.labelSm.fontSize,
     letterSpacing: Typography.labelSm.letterSpacing,
     color: Colors.onSurfaceMuted,
     textTransform: 'uppercase',
-    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
   },
-  points: {
+  value: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: Typography.displayLg.fontSize,
     lineHeight: Typography.displayLg.lineHeight,
-    color: Colors.primary,
+    letterSpacing: Typography.displayLg.letterSpacing,
+    color: Colors.onSurface,
+    paddingHorizontal: Spacing.xl,
+    marginTop: Spacing.xs,
   },
-  cashback: {
+  subValue: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.onSurfaceVariant,
-    marginTop: Spacing.xs,
+    paddingHorizontal: Spacing.xl,
   },
-  progressSection: {
-    width: '100%',
+
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    marginTop: Spacing.lg,
+  },
+  redeemButton: { flex: 1 },
+  tierPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.surfaceContainerHigh,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+  tierPillText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: Colors.onSurface,
+  },
+
+  progressCard: {
+    marginHorizontal: Spacing.xl,
     marginTop: Spacing.xl,
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  progressHead: { flexDirection: 'row', justifyContent: 'space-between' },
+  progressTier: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: Colors.primary,
+  },
+  progressTierNext: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: Colors.onSurfaceMuted,
   },
   progressTrack: {
     height: 8,
@@ -163,62 +343,105 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceContainerHigh,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-  },
+  progressFill: { height: '100%', borderRadius: 4, backgroundColor: Colors.primary },
   progressLabel: {
     fontFamily: 'Inter_400Regular',
     fontSize: 12,
+    lineHeight: 17,
     color: Colors.onSurfaceVariant,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
   },
-  topTierRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    marginTop: Spacing.sm,
-  },
-  section: {
-    marginTop: Spacing.xxl,
-  },
-  rateGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  progressStrong: { fontFamily: 'Inter_600SemiBold', color: Colors.onSurface },
+  topTierRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+
+  section: { marginTop: Spacing.xxl },
+  sectionNote: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceMuted,
     paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
+    marginBottom: Spacing.md,
+    marginTop: -Spacing.xs,
   },
-  rateCard: {
-    width: '47%',
+
+  benefitRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+  },
+  benefit: {
+    flex: 1,
     backgroundColor: Colors.surfaceContainerLow,
     borderRadius: Radius.lg,
-    padding: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+    gap: 2,
   },
-  rateLabel: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: Typography.bodySm.fontSize,
-    color: Colors.onSurfaceVariant,
-  },
-  rateValue: {
+  benefitMuted: { opacity: 0.55 },
+  benefitValue: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: Typography.titleMd.fontSize,
-    color: Colors.primary,
+    color: Colors.onSurface,
     marginTop: Spacing.xs,
   },
+  benefitValueMuted: { color: Colors.onSurfaceVariant },
+  benefitLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: Colors.onSurfaceMuted,
+    textAlign: 'center',
+  },
+
+  rateList: { paddingHorizontal: Spacing.xl },
+  rateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  rateIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rateLabel: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurface,
+  },
+  rateBase: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceMuted,
+    textDecorationLine: 'line-through',
+  },
+  rateValue: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: Typography.bodyMd.fontSize,
+    color: Colors.primary,
+    minWidth: 52,
+    textAlign: 'right',
+  },
+
+  historyList: { paddingHorizontal: Spacing.xl },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  historyDivided: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.outlineVariant,
   },
   historyIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.pill,
+    width: 34,
+    height: 34,
+    borderRadius: Radius.sm,
     backgroundColor: Colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
@@ -235,13 +458,16 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceMuted,
     marginTop: 2,
   },
+  historyRight: { alignItems: 'flex-end' },
   historyPoints: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
     color: Colors.primary,
   },
-  footer: {
-    paddingHorizontal: Spacing.xl,
-    marginTop: Spacing.xl,
+  historyCash: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: Colors.onSurfaceMuted,
+    marginTop: 2,
   },
 });

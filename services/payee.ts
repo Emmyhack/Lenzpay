@@ -1,5 +1,6 @@
 import type { CurrencyCode } from '@/types/payment';
 import type { Payee, PayeeResolutionType, ReceivingMethod } from '@/types/orchestration';
+import { looksLikeEmvco, parseEmvco } from './emvco';
 
 /**
  * Payee Resolution Service (§3.3).
@@ -89,7 +90,56 @@ export function decodeQRPayload(raw: string): DecodeResult {
   if (trimmed.startsWith('{')) return decodeJsonPayload(trimmed);
   if (trimmed.startsWith('lenzpay://')) return decodeUriPayload(trimmed);
 
-  return { ok: false, reason: 'This QR code is not a Lenz Pay payment code' };
+  // EMVCo / NQR — codes we didn't issue. A merchant with an NQR sticker
+  // already printed will not print a second one for us, so being able to read
+  // the national format matters more for acceptance than our own scheme does.
+  if (looksLikeEmvco(trimmed)) return decodeEmvcoPayload(trimmed);
+
+  return { ok: false, reason: 'This QR code is not a payment code we recognise' };
+}
+
+function decodeEmvcoPayload(raw: string): DecodeResult {
+  const parsed = parseEmvco(raw);
+  if (!parsed.ok) return { ok: false, reason: parsed.reason };
+
+  const { payload } = parsed;
+
+  // A failed checksum means the code was misread or tampered with. Refusing is
+  // the only safe response — the alternative is paying a corrupted destination.
+  if (!payload.crcValid) {
+    return { ok: false, reason: 'This QR code failed its checksum. Ask for a fresh code.' };
+  }
+  if (!payload.merchantName) {
+    return { ok: false, reason: 'This QR code does not identify a merchant' };
+  }
+
+  // The merchant account templates are scheme-defined, so we key the payee on
+  // the raw template rather than guessing at its internals. Directory lookup
+  // resolves it to a known merchant where one exists.
+  const accountKey =
+    payload.merchantAccounts.map((entry) => `${entry.tag}:${entry.value}`).join('|') ||
+    payload.merchantName;
+
+  return {
+    ok: true,
+    payload: {
+      payeeId: `emvco_${hashKey(accountKey)}`,
+      displayName: payload.merchantName,
+      currency: payload.currency ?? 'NGN',
+      amount: payload.amount,
+      receivingMethod: 'bank_transfer',
+    },
+  };
+}
+
+/** Stable short key for an EMVCo merchant account template. */
+function hashKey(value: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36);
 }
 
 function decodeJsonPayload(raw: string): DecodeResult {
@@ -240,6 +290,13 @@ export async function resolvePayee(
 ): Promise<ResolveResult> {
   switch (input.type) {
     case 'qr': {
+      // The camera can't know which scheme it just read. An EMVCo/NQR code
+      // arrives here as a plain scan, and must not fall through to the Lenz
+      // path — which would refuse it for lacking a Lenz settlement destination.
+      if (looksLikeEmvco(input.value)) {
+        return resolvePayee({ ...input, type: 'emvco' }, directory);
+      }
+
       const decoded = decodeQRPayload(input.value);
       if (!decoded.ok) return { ok: false, reason: decoded.reason };
 
@@ -253,6 +310,30 @@ export async function resolvePayee(
         return { ok: false, reason: 'This payee could not be verified. Do not pay.' };
       }
       return { ok: true, payee: fromPayload, fixedAmount: decoded.payload.amount };
+    }
+
+    case 'emvco': {
+      const decoded = decodeQRPayload(input.value);
+      if (!decoded.ok) return { ok: false, reason: decoded.reason };
+
+      const known = await directory.lookupId(decoded.payload.payeeId);
+      if (known) return { ok: true, payee: known, fixedAmount: decoded.payload.amount };
+
+      // A checksum-valid national QR names a real merchant, but one we have no
+      // independent record of — surfaced unverified so the UI warns rather
+      // than reassures.
+      return {
+        ok: true,
+        payee: {
+          id: decoded.payload.payeeId,
+          displayName: decoded.payload.displayName ?? 'Unverified merchant',
+          resolutionType: 'emvco',
+          settlementCurrency: decoded.payload.currency ?? 'NGN',
+          receivingMethod: 'bank_transfer',
+          isVerified: false,
+        },
+        fixedAmount: decoded.payload.amount,
+      };
     }
 
     case 'account_number': {

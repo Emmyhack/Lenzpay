@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Typography } from '@/constants/theme';
@@ -75,9 +75,9 @@ export default function ConfirmScreen() {
         <View style={styles.lockout}>
           <Text style={styles.lockoutTitle}>Too many attempts</Text>
           <Text style={styles.lockoutBody}>For your security, try again later or contact support.</Text>
-          <Text style={styles.cancel} onPress={() => router.back()}>
-            Back to Home
-          </Text>
+          <Pressable onPress={() => router.back()} accessibilityRole="button" hitSlop={12}>
+            <Text style={styles.cancel}>Back to payment</Text>
+          </Pressable>
         </View>
       ) : (
         <>
@@ -92,9 +92,9 @@ export default function ConfirmScreen() {
           <PINPad length={PIN_LENGTH} value={pin} onChange={handlePinChange} error={error} />
           {verifying ? <Text style={styles.verifying}>Verifying…</Text> : null}
 
-          <Text style={styles.cancel} onPress={() => router.back()}>
-            Cancel
-          </Text>
+          <Pressable onPress={() => router.back()} accessibilityRole="button" hitSlop={12}>
+            <Text style={styles.cancel}>Cancel</Text>
+          </Pressable>
         </>
       )}
     </View>

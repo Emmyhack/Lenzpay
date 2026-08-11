@@ -52,6 +52,8 @@ export function conversionCostScore(fee: number, delivered: number): number {
 export interface RankOptions {
   now?: number;
   lockWindowMs?: number;
+  /** Rewards-tier FX spread waiver, 0..1. */
+  spreadDiscount?: number;
 }
 
 /**

@@ -9,6 +9,7 @@ import type {
 import { Orchestration } from '@/constants/config';
 import { floorCurrency, roundCurrency, sumAmounts } from '@/services/money';
 import { fromSettlement, legFee, type RateFeed } from './fx';
+import { minimumViableLeg, planCollectionCost } from './costs';
 import { partitionByReserve, rankSources, totalAvailable } from './ranking';
 import { nextId } from './ids';
 
@@ -39,6 +40,8 @@ export interface PlanOptions {
   /** Force a specific source (Manual mode). Bypasses ranking for selection. */
   preferredSourceId?: string;
   maxLegs?: number;
+  /** Rewards-tier FX spread waiver, 0..1 — a real discount, not a label. */
+  spreadDiscount?: number;
 }
 
 export function planPayment(
@@ -59,6 +62,7 @@ export function planPayment(
   const ranked = rankSources(sources, roundedAmount, currency, feed, {
     now,
     lockWindowMs: options.lockWindowMs,
+    spreadDiscount: options.spreadDiscount,
   });
   const eligible = ranked.filter((entry) => entry.eligible);
 
@@ -108,7 +112,7 @@ export function planPayment(
   }
 
   // ---- Step 3 — waterfall across non-reserve sources ---------------------
-  const preferredContributors = selectContributors(preferred, roundedAmount, maxLegs);
+  const preferredContributors = selectContributors(preferred, roundedAmount, maxLegs, currency);
   if (preferredContributors) {
     return success(
       buildPlan('waterfall', preferredContributors, roundedAmount, currency, now),
@@ -130,7 +134,8 @@ export function planPayment(
   const allContributors = selectContributors(
     [...preferred, ...reserve],
     roundedAmount,
-    maxLegs
+    maxLegs,
+    currency
   );
   if (!allContributors) {
     // Funds exist but can't be assembled inside the leg cap — say so plainly
@@ -158,26 +163,53 @@ export function planPayment(
 function selectContributors(
   candidates: RankedSource[],
   amount: number,
-  maxLegs: number
+  maxLegs: number,
+  currency: CurrencyCode
 ): RankedSource[] | null {
   if (candidates.length === 0) return null;
 
+  // Prefer legs that clear their own debit fee — a source whose whole balance
+  // is worth less than the cost of pulling it burns money and adds a failure
+  // point.
+  const economic = candidates.filter(
+    (entry) =>
+      entry.normalizedBalance >=
+      minimumViableLeg(entry.source, Orchestration.minLegCostRatio, currency)
+  );
+
+  if (economic.length > 0) {
+    const fromEconomic = pickCovering(economic, amount, maxLegs);
+    if (fromEconomic) return fromEconomic;
+  }
+
+  // Cost optimisation never overrides the product promise. If the economic
+  // subset can't cover the payment but the full set can, use the full set —
+  // a payment the user can afford must not fail because one leg is small.
+  return pickCovering(candidates, amount, maxLegs);
+}
+
+/** Greedy by rank, falling back to the deepest accounts within the cap. */
+function pickCovering(
+  pool: RankedSource[],
+  amount: number,
+  maxLegs: number
+): RankedSource[] | null {
   const byRank: RankedSource[] = [];
   let covered = 0;
-  for (const entry of candidates) {
+  for (const entry of pool) {
     if (covered >= amount || byRank.length >= maxLegs) break;
     byRank.push(entry);
     covered += entry.normalizedBalance;
   }
   if (covered >= amount) return byRank;
 
-  const deepest = [...candidates]
+  const deepest = [...pool]
     .sort((a, b) => b.normalizedBalance - a.normalizedBalance)
     .slice(0, maxLegs);
   const deepestTotal = deepest.reduce((sum, entry) => sum + entry.normalizedBalance, 0);
   if (deepestTotal < amount) return null;
 
-  const order = new Map(candidates.map((entry, index) => [entry.source.id, index]));
+  const order = new Map(pool.map((entry, index) => [entry.source.id, index]));
   return deepest.sort(
     (a, b) => (order.get(a.source.id) ?? 0) - (order.get(b.source.id) ?? 0)
   );
@@ -211,7 +243,11 @@ function buildPlan(
       ? roundCurrency(remaining, currency)
       : roundCurrency(Math.min(entry.normalizedBalance, remaining), currency);
 
-    if (contribution < Orchestration.minLegAmount && !isLast) return;
+    // No cost-based skipping here. Viability was decided during selection,
+    // where coverage could still be guaranteed; by this point every remaining
+    // contributor is load-bearing, and dropping one would leave the final leg
+    // owing more than its source holds.
+    if (!isLast && contribution < Orchestration.minLegAmount) return;
 
     const required = fromSettlement(entry.quote, contribution);
     const amountInSourceCurrency = Math.min(required, entry.source.rawBalance);
@@ -246,6 +282,8 @@ function buildPlan(
       legs.map((leg) => leg.feeInSettlementCurrency),
       currency
     ),
+    // What it will cost to pull these legs in, before any netting.
+    collectionCost: planCollectionCost(legs, currency),
     expiresAt: expiries.length > 0 ? Math.min(...expiries) : null,
     createdAt: now,
   };

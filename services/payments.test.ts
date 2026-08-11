@@ -15,6 +15,7 @@ import {
   Treasury,
 } from './orchestration';
 import { payee } from './orchestration/__fixtures__';
+import { CASHBACK_RATES } from '@/mock/data';
 
 /**
  * Integration coverage for the path the app actually runs:
@@ -94,7 +95,13 @@ test('a single-source payment produces a complete receipt', async () => {
   assert.equal(txn.status, 'completed');
   assert.equal(txn.sourceLabel, 'Access Bank *rc_a');
   assert.equal(txn.fxRate, undefined, 'no FX leg means no rate line');
-  assert.equal(txn.cashbackNGN, Math.round(4_500 * 0.015), 'transport cashback rate applies');
+  // Reads the configured rate rather than restating it — cashback rates are
+  // derived from the profit model and change with it (see PROFIT-MODEL.md).
+  assert.equal(
+    txn.cashbackNGN,
+    Math.round(4_500 * CASHBACK_RATES.transport),
+    'transport cashback rate applies'
+  );
   assert.ok(txn.txnRef.startsWith('LNZ-'));
   assert.equal(ledger.reconciles(txn.id), true);
 });

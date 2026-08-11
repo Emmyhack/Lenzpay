@@ -46,16 +46,24 @@ const EMPTY: PaymentLogicResult = {
 export function usePaymentLogic(
   amountNGN: number,
   sources: PaymentSource[],
-  options: { currency?: CurrencyCode; preferredSourceId?: string } = {}
+  options: {
+    currency?: CurrencyCode;
+    preferredSourceId?: string;
+    /** Rewards-tier FX spread waiver, 0..1 — quoted, not just advertised. */
+    spreadDiscount?: number;
+  } = {}
 ): PaymentLogicResult {
-  const { currency = 'NGN', preferredSourceId } = options;
+  const { currency = 'NGN', preferredSourceId, spreadDiscount = 0 } = options;
 
   return useMemo(() => {
     if (amountNGN <= 0 || sources.length === 0) {
       return { ...EMPTY, deficit: Math.max(0, amountNGN) };
     }
 
-    const result = paymentEngine.plan(sources, amountNGN, currency, { preferredSourceId });
+    const result = paymentEngine.plan(sources, amountNGN, currency, {
+      preferredSourceId,
+      spreadDiscount,
+    });
 
     if (!result.ok) {
       return {
@@ -93,7 +101,7 @@ export function usePaymentLogic(
       deficit: 0,
       isCoverable: true,
     };
-  }, [amountNGN, sources, currency, preferredSourceId]);
+  }, [amountNGN, sources, currency, preferredSourceId, spreadDiscount]);
 }
 
 /**

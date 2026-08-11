@@ -16,7 +16,17 @@ export const Colors = {
   surfaceBright: '#2c2c2d', // popovers, high-priority modals
 
   // ── Brand ─────────────────────────────────────────────────
-  primary: '#34fea0', // lime-green CTA, glow source
+  //
+  // `primary` is the single source of truth for the brand accent, including
+  // the wordmark (see components/ui/LenzPayLogo).
+  //
+  // Note the app icon (`assets/icon.png`) is currently a different green,
+  // #b5e61d — a yellow-lime rather than this mint. Two greens is a brand bug,
+  // and this token wins: every CTA, badge, chart accent and focus state in the
+  // app already uses it, so changing the token would mean recolouring the
+  // entire product to match one asset. The icon is the outlier and is the
+  // thing to regenerate — tracked in docs/ARCHITECTURE-DECISIONS.md (ADR-008).
+  primary: '#34fea0', // mint — brand accent, CTA, glow source
   primaryContainer: '#0cef93', // gradient endpoint (135°)
   onPrimary: '#005c36', // text ON primary buttons
 

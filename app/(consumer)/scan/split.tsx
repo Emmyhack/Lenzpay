@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { usePaymentLogic } from '@/hooks/usePaymentLogic';
 import { useSourcesStore } from '@/store/sources';
 import { usePaymentStore } from '@/store/payment';
+import { useRewardsStore } from '@/store/rewards';
+import { REWARDS_TIERS } from '@/mock/rewards';
 
 export default function SplitScreen() {
   const router = useRouter();
@@ -17,7 +19,11 @@ export default function SplitScreen() {
   const setPlan = usePaymentStore((s) => s.setPlan);
   const storedPlan = usePaymentStore((s) => s.plan);
 
-  const result = usePaymentLogic(amountNGN, sources);
+  const tier = useRewardsStore((s) => s.tier);
+  const spreadDiscount =
+    REWARDS_TIERS.find((t) => t.name === tier)?.fxSpreadDiscount ?? 0;
+
+  const result = usePaymentLogic(amountNGN, sources, { spreadDiscount });
   // Prefer the plan already committed on the source screen — re-planning here
   // could quote a different rate than the one the user was shown.
   const plan = storedPlan ?? result.plan;

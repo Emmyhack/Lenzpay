@@ -5,16 +5,23 @@ import { Colors, Spacing, Typography } from '@/constants/theme';
 import { SpinningRing } from '@/components/shared/SpinningRing';
 import { usePaymentStore } from '@/store/payment';
 import { useRewardsStore } from '@/store/rewards';
+import { REWARDS_TIERS } from '@/mock/rewards';
 import { initiatePayment } from '@/services/payments';
 import { MOCK_USER } from '@/mock/data';
+import { evaluatePaymentRisk } from '@/services/fraud';
+import { useSecurityStore } from '@/store/security';
+import { useSourcesStore } from '@/store/sources';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ProcessingScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const amountNGN = usePaymentStore((s) => s.amountNGN);
   const merchant = usePaymentStore((s) => s.merchant);
   const mode = usePaymentStore((s) => s.mode);
   const selectedSource = usePaymentStore((s) => s.selectedSource);
-  const addPoints = useRewardsStore((s) => s.addPoints);
+  const applyTransactionReward = useRewardsStore((s) => s.applyTransactionReward);
+  const rewardsTier = useRewardsStore((s) => s.tier);
 
   const started = useRef(false);
 
@@ -34,6 +41,25 @@ export default function ProcessingScreen() {
         return;
       }
 
+      const security = useSecurityStore.getState();
+      const alert = evaluatePaymentRisk({
+        amountNGN: plan.amount,
+        payee,
+        plan,
+        perTransactionLimitNGN: security.perTxnLimitNGN,
+        dailyLimitNGN: security.effectiveDailyLimitNGN(
+          REWARDS_TIERS.find((t) => t.name === rewardsTier)?.dailyLimitMultiplier ?? 1
+        ),
+        spentTodayNGN: security.spentToday(),
+        unusualAmountAlertsEnabled: security.unusualAmountAlerts,
+      });
+      if (alert) security.raiseFraudAlert(alert);
+      if (alert?.blocked) {
+        fail(`Payment blocked for your protection: ${alert.reasons.join('. ')}.`);
+        router.replace('/(consumer)/scan/failed');
+        return;
+      }
+
       const result = await initiatePayment({
         payee,
         plan,
@@ -41,10 +67,23 @@ export default function ProcessingScreen() {
         userId: MOCK_USER.id,
         attemptNonce,
         merchantCategory: merchant?.category,
+        rewardsTier,
       });
 
       if (result.success && result.transaction && result.execution?.ok) {
-        addPoints(result.transaction.pointsEarned, result.transaction.cashbackNGN);
+        // Count the payment against today's limit. Recorded only on success,
+        // so a blocked or failed attempt never consumes headroom.
+        useSecurityStore.getState().recordSpend(result.transaction.amount);
+        useSourcesStore.getState().applySettledTransaction(
+          result.transaction.id,
+          result.execution.legs
+        );
+        applyTransactionReward(
+          result.transaction.id,
+          result.transaction.pointsEarned,
+          result.transaction.cashbackNGN
+        );
+        await queryClient.invalidateQueries({ queryKey: ['transactions'] });
         succeed(
           result.transaction,
           result.execution.legs,
@@ -59,7 +98,7 @@ export default function ProcessingScreen() {
         router.replace('/(consumer)/scan/failed');
       }
     })();
-  }, [merchant, mode, addPoints, router]);
+  }, [merchant, mode, rewardsTier, applyTransactionReward, queryClient, router]);
 
   const sourceLabel = selectedSource?.label ?? 'your sources';
 

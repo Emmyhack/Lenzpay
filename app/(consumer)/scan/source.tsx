@@ -9,6 +9,8 @@ import { Icon } from '@/components/ui/Icon';
 import { describePlanFailure, usePaymentLogic } from '@/hooks/usePaymentLogic';
 import { useSourcesStore } from '@/store/sources';
 import { usePaymentStore } from '@/store/payment';
+import { useRewardsStore } from '@/store/rewards';
+import { REWARDS_TIERS } from '@/mock/rewards';
 
 export default function SourceScreen() {
   const router = useRouter();
@@ -17,6 +19,11 @@ export default function SourceScreen() {
   const selectSource = usePaymentStore((s) => s.selectSource);
   const setMode = usePaymentStore((s) => s.setMode);
   const setPlan = usePaymentStore((s) => s.setPlan);
+  const tier = useRewardsStore((s) => s.tier);
+  // The tier's FX benefit is applied to the quote itself, so the rate the user
+  // sees on the confirm screen is the discounted one they were promised.
+  const spreadDiscount =
+    REWARDS_TIERS.find((t) => t.name === tier)?.fxSpreadDiscount ?? 0;
 
   const [uiMode, setUiMode] = useState<'auto' | 'manual'>('auto');
   const [manualSelectedId, setManualSelectedId] = useState<string | undefined>();
@@ -25,6 +32,7 @@ export default function SourceScreen() {
   // and fees shown on the confirm screen match the source they actually chose.
   const result = usePaymentLogic(amountNGN, sources, {
     preferredSourceId: uiMode === 'manual' ? manualSelectedId : undefined,
+    spreadDiscount,
   });
 
   const manualSource = sources.find((s) => s.id === manualSelectedId);

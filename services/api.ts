@@ -15,28 +15,15 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-let isRefreshing = false;
-
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const original = error.config;
-
-    // Single retry on 401 while a refresh isn't already in flight — avoids
-    // stacking retries if the token is genuinely invalid.
-    if (error.response?.status === 401 && !original._retry && !isRefreshing) {
-      original._retry = true;
-      isRefreshing = true;
-      try {
-        // Replace with a real refresh-token exchange once the backend exists.
-        isRefreshing = false;
-        return api(original);
-      } catch (refreshError) {
-        isRefreshing = false;
-        return Promise.reject(refreshError);
-      }
+    // Retrying the same expired bearer token only creates a duplicate request.
+    // Until a real refresh-token endpoint exists, clear the unusable credential
+    // and let the caller return the user to authentication.
+    if (error.response?.status === 401) {
+      await SecureStore.deleteItemAsync('lenzpay_auth_token');
     }
-
     return Promise.reject(error);
   }
 );

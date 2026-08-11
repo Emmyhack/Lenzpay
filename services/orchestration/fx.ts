@@ -64,20 +64,31 @@ export interface FeeTerms {
  * Conversion cost by corridor. Stablecoin off-ramps are cheaper than volatile
  * assets because the liquidity partner carries less inventory risk.
  */
-export function feeScheduleFor(from: CurrencyCode, to: CurrencyCode): FeeTerms {
+export function feeScheduleFor(
+  from: CurrencyCode,
+  to: CurrencyCode,
+  /**
+   * Share of our spread waived, 0..1 — the rewards tier benefit. Applied to
+   * the proportional rate only: the flat fee is the partner's cost of moving
+   * money and is not ours to give away.
+   */
+  spreadDiscount = 0
+): FeeTerms {
   if (from === to) return { feeRate: 0, flatFee: 0, provider: 'none' };
+
+  const keep = 1 - Math.max(0, Math.min(1, spreadDiscount));
 
   if (isCrypto(from)) {
     const isStablecoin = from === 'USDT';
     return {
-      feeRate: isStablecoin ? 0.008 : 0.015,
+      feeRate: (isStablecoin ? 0.008 : 0.015) * keep,
       flatFee: to === 'NGN' ? 100 : 0.5,
       provider: 'crypto_liquidity',
     };
   }
 
   // Fiat ↔ fiat via the FX partner.
-  return { feeRate: 0.009, flatFee: to === 'NGN' ? 50 : 0.25, provider: 'fx_partner' };
+  return { feeRate: 0.009 * keep, flatFee: to === 'NGN' ? 50 : 0.25, provider: 'fx_partner' };
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +117,8 @@ export interface QuoteOptions {
   now?: number;
   /** Overrides the default rate-lock window, in ms. */
   lockWindowMs?: number;
+  /** Rewards-tier spread waiver, 0..1. */
+  spreadDiscount?: number;
 }
 
 /**
@@ -122,7 +135,7 @@ export function getQuote(
   if (from === to) return identityQuote(from, now);
 
   const lockWindowMs = options.lockWindowMs ?? Orchestration.rateLockWindowMs;
-  const terms = feeScheduleFor(from, to);
+  const terms = feeScheduleFor(from, to, options.spreadDiscount ?? 0);
 
   return {
     id: nextQuoteId(),

@@ -87,8 +87,15 @@ function harness(
   return { deps, journal, rails };
 }
 
-function plan(sources: Parameters<typeof planPayment>[0], amount: number): FundingPlan {
-  const result = planPayment(sources, amount, 'NGN', feed(), { now: FIXED_NOW });
+// Tests pin `maxLegs` explicitly rather than inheriting the launch phase's
+// cap — engine behaviour under N legs shouldn't change when a business policy
+// like `LaunchPhase` is retuned.
+function plan(
+  sources: Parameters<typeof planPayment>[0],
+  amount: number,
+  maxLegs = 4
+): FundingPlan {
+  const result = planPayment(sources, amount, 'NGN', feed(), { now: FIXED_NOW, maxLegs });
   assert.equal(result.ok, true, 'fixture should produce a valid plan');
   if (!result.ok) throw new Error('unreachable');
   return result.plan;
@@ -176,7 +183,8 @@ test('a multi-currency waterfall reconciles across every currency it touches', a
       usdAccount(4, { id: 'src_usd' }),
       cryptoWallet('USDT', 30, { id: 'src_usdt' }),
     ],
-    50_000
+    50_000,
+    3
   );
   assert.equal(p.legs.length, 3, 'fixture should require all three currencies');
 
@@ -204,7 +212,8 @@ test('a failed hold releases every prior hold and captures nothing', async () =>
       ngnBank(1_500, { id: 'src_b' }),
       ngnBank(1_500, { id: 'src_c' }),
     ],
-    4_500
+    4_500,
+    3
   );
 
   const result = await executePlan({ plan: p, payee: payee(), idempotencyKey: KEY, userId: USER, strategy: 'hold_then_capture' }, deps);
@@ -317,7 +326,8 @@ test('a retried waterfall never double-charges any of its accounts', async () =>
       ngnBank(1_500, { id: 'src_b' }),
       ngnBank(1_500, { id: 'src_c' }),
     ],
-    4_500
+    4_500,
+    3
   );
 
   await Promise.all([
