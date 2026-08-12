@@ -55,6 +55,7 @@
     "@types/node": "^26.2.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.6",
+    "expo-doctor": "^1.20.1",
     "tsx": "^4.23.12",
     "typescript": "~6.0.3"
   },
@@ -64,7 +65,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "tsx --test services/*.test.ts services/orchestration/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "doctor": "expo-doctor",
+    "export:web": "expo export --platform web --output-dir dist --clear",
+    "ci:check": "npm run typecheck && npm test && npm run doctor && npm run export:web"
   },
   "private": true,
   "allowScripts": {

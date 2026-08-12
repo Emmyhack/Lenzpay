@@ -1,0 +1,71 @@
+name: LenzPay Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# A newer commit on the same PR makes the previous run irrelevant.
+concurrency:
+  group: quality-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    name: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      EXPO_PUBLIC_APP_ENV: test
+      EXPO_PUBLIC_API_BASE_URL: http://127.0.0.1:3000
+      EXPO_PUBLIC_USE_MOCK_DATA: true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Reject pull-request whitespace errors
+        if: github.event_name == 'pull_request'
+        run: git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.sha }}"
+
+      - name: Reject pushed whitespace errors
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: git diff --check "${{ github.event.before }}...${{ github.sha }}"
+
+      - name: Type-check application
+        run: npm run typecheck
+
+      - name: Run financial and product logic tests
+        run: npm test
+
+      - name: Validate Expo SDK and app configuration
+        run: npm run doctor
+
+      - name: Build production web bundle
+        run: npm run export:web
+
+      - name: Publish verification summary
+        if: always()
+        run: |
+          {
+            echo "## LenzPay quality gate"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- TypeScript, domain tests, Expo Doctor, and Metro export are required above."
+          } >> "$GITHUB_STEP_SUMMARY"
