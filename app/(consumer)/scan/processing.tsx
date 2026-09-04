@@ -33,7 +33,8 @@ export default function ProcessingScreen() {
       // Read straight from the store rather than from props: this effect runs
       // exactly once, and stale closure values here would mean charging the
       // wrong accounts.
-      const { payee, plan, attemptNonce, succeed, fail } = usePaymentStore.getState();
+      const { payee, plan, lockedPlan, attemptNonce, succeed, fail } =
+        usePaymentStore.getState();
 
       if (!payee || !plan) {
         fail('This payment expired before it could be sent. Please start again.');
@@ -62,7 +63,10 @@ export default function ProcessingScreen() {
 
       const result = await initiatePayment({
         payee,
-        plan,
+        // The prepared plan when the confirm screen locked one: its legs already
+        // carry real authorisations, so nothing is re-authorised here and the
+        // accounts charged are exactly the ones whose guarantees were shown.
+        plan: lockedPlan ?? plan,
         mode: mode ?? 'auto',
         userId: MOCK_USER.id,
         attemptNonce,

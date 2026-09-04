@@ -1,12 +1,26 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { Icon } from '@/components/ui/Icon';
-import type { FundingPlan } from '@/types/orchestration';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import type { FundingPlan, LockedPlan } from '@/types/orchestration';
 import { formatRateLine } from '@/services/orchestration';
 
 interface PlanDisclosureProps {
-  plan: FundingPlan;
+  /**
+   * Accepts a prepared plan as well as a raw one. Once prepared, `expiresAt`
+   * is the earlier of the rate lock and any authorisation placed — so the
+   * countdown becomes a real deadline for the payment, not just the rate.
+   */
+  plan: FundingPlan | LockedPlan;
 }
 
 /**
@@ -17,11 +31,38 @@ interface PlanDisclosureProps {
  * The countdown makes the rate lock visible rather than an invisible deadline
  * the user discovers only when the payment re-prompts them.
  */
+const URGENT_BELOW_S = 10;
+
 export function PlanDisclosure({ plan }: PlanDisclosureProps) {
   const secondsLeft = useCountdown(plan.expiresAt);
+  const reduceMotion = useReducedMotion();
   const converting = plan.legs.filter((leg) => leg.sourceCurrency !== leg.settlementCurrency);
 
-  if (converting.length === 0 && plan.legs.length <= 1) return null;
+  // A hold that is about to lapse is a real deadline with a real cost — the
+  // authorisation is released and the user has to start again. Colour alone is
+  // easy to miss on a screen someone is only half looking at, so the last ten
+  // seconds pulse. It stops at zero rather than pulsing at an expired lock.
+  const urgency = useSharedValue(1);
+  const isUrgent = secondsLeft !== null && secondsLeft > 0 && secondsLeft <= URGENT_BELOW_S;
+
+  useEffect(() => {
+    if (!isUrgent || reduceMotion) {
+      cancelAnimation(urgency);
+      urgency.value = 1;
+      return;
+    }
+    urgency.value = withRepeat(
+      withTiming(0.35, { duration: 550, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      true
+    );
+    return () => cancelAnimation(urgency);
+  }, [isUrgent, reduceMotion, urgency]);
+
+  const urgencyStyle = useAnimatedStyle(() => ({ opacity: urgency.value }));
+
+  // A single same-currency leg with no deadline has nothing to disclose.
+  if (converting.length === 0 && plan.legs.length <= 1 && plan.expiresAt === null) return null;
 
   return (
     <View style={styles.wrap}>
@@ -51,18 +92,18 @@ export function PlanDisclosure({ plan }: PlanDisclosureProps) {
       ) : null}
 
       {secondsLeft !== null ? (
-        <View style={styles.lockRow}>
+        <Animated.View style={[styles.lockRow, urgencyStyle]}>
           <Icon
-            name={secondsLeft > 10 ? 'lock-closed' : 'time'}
+            name={secondsLeft > URGENT_BELOW_S ? 'lock-closed' : 'time'}
             size={12}
-            color={secondsLeft > 10 ? Colors.onSurfaceMuted : Colors.warning}
+            color={secondsLeft > URGENT_BELOW_S ? Colors.onSurfaceMuted : Colors.warning}
           />
-          <Text style={[styles.lockText, secondsLeft <= 10 && styles.lockTextUrgent]}>
+          <Text style={[styles.lockText, secondsLeft <= URGENT_BELOW_S && styles.lockTextUrgent]}>
             {secondsLeft > 0
-              ? `Rate held for ${secondsLeft}s`
-              : 'Rate expired — we’ll re-check before sending'}
+              ? `${converting.length > 0 ? 'Rate' : 'Funds'} held for ${secondsLeft}s`
+              : 'Expired — we’ll re-check before sending'}
           </Text>
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );

@@ -24,6 +24,10 @@ export const MOCK_SOURCES: PaymentSource[] = [
     currency: 'NGN',
     balance: 842_000,
     rawBalance: 842_000,
+    // A standing debit order has already been earmarked. The engine plans
+    // against this figure, so the card shows it too rather than letting a
+    // payment fail against a balance the user can see is large enough.
+    spendableRawBalance: 818_500,
     rawCurrency: 'NGN',
     isDefault: true,
     bankCode: '044',
@@ -32,6 +36,26 @@ export const MOCK_SOURCES: PaymentSource[] = [
     priorityWeight: 90,
     reliability: 0.99,
     providerRef: 'mono:acc_access_4421',
+  },
+  {
+    // The one launch-corridor rail that can genuinely authorise. It reports no
+    // balance at all — `rawBalance` here is the issuer's declared limit, and
+    // the leg stays provisional until `prepare()` gets a real authorisation.
+    id: 'src_card_001',
+    type: 'card',
+    label: 'GTBank Card',
+    accountMask: '*4582',
+    currency: 'NGN',
+    balance: 150_000,
+    rawBalance: 150_000,
+    rawCurrency: 'NGN',
+    isDefault: false,
+    bankCode: '058',
+    flag: '🇳🇬',
+    lastSynced: new Date(),
+    priorityWeight: 60,
+    reliability: 0.97,
+    providerRef: 'paystack:auth_4582',
   },
   {
     id: 'src_opay_001',

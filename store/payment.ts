@@ -7,7 +7,7 @@ import type {
   SplitAllocation,
   Transaction,
 } from '@/types/payment';
-import type { FundingLeg, FundingPlan, Payee } from '@/types/orchestration';
+import type { FundingLeg, FundingPlan, LockedPlan, Payee } from '@/types/orchestration';
 import { payeeFromMerchant } from '@/mock/payees';
 
 interface PaymentFlowStoreState {
@@ -26,6 +26,16 @@ interface PaymentFlowStoreState {
    * accounts charged are exactly the ones shown on the confirm screen.
    */
   plan: FundingPlan | null;
+  /**
+   * The plan once it has been prepared: rates re-locked, authorisations placed,
+   * float cover obtained. This — not `plan` — is what the confirm screen
+   * renders and what executes, so the figures the user approves are committed
+   * rather than estimated (ADR-013).
+   *
+   * Holding real authorisations means abandoning the flow has to release them;
+   * see `clearLockedPlan`.
+   */
+  lockedPlan: LockedPlan | null;
   /**
    * Distinguishes a deliberate repeat payment from a retry of the same one.
    * Regenerated per attempt; feeds the idempotency key.
@@ -51,6 +61,9 @@ interface PaymentFlowStoreState {
   selectSource: (source: PaymentSource) => void;
   setSplitAllocations: (allocations: SplitAllocation[]) => void;
   setPlan: (plan: FundingPlan) => void;
+  setLockedPlan: (locked: LockedPlan | null) => void;
+  /** Forget a prepared plan. The caller must release its holds first. */
+  clearLockedPlan: () => void;
   advance: (state: PaymentFlowState) => void;
   succeed: (transaction: Transaction, legs: FundingLeg[], pending?: FundingLeg[]) => void;
   fail: (reason: string, needsManualReview?: boolean) => void;
@@ -73,6 +86,7 @@ const initialState = {
   selectedSource: null,
   splitAllocations: null,
   plan: null,
+  lockedPlan: null,
   failureReason: null,
   needsManualReview: false,
   lastTransaction: null,
@@ -104,7 +118,10 @@ export const usePaymentStore = create<PaymentFlowStoreState>((set, get) => ({
   selectSource: (selectedSource) => set({ selectedSource, flowState: 'source_selected' }),
   setSplitAllocations: (splitAllocations) =>
     set({ splitAllocations, flowState: 'split_confirmed' }),
-  setPlan: (plan) => set({ plan }),
+  // A new plan invalidates any preparation of the previous one.
+  setPlan: (plan) => set({ plan, lockedPlan: null }),
+  setLockedPlan: (lockedPlan) => set({ lockedPlan }),
+  clearLockedPlan: () => set({ lockedPlan: null }),
   advance: (flowState) => set({ flowState }),
 
   succeed: (lastTransaction, settledLegs, pendingCollectionLegs = []) =>
@@ -122,6 +139,9 @@ export const usePaymentStore = create<PaymentFlowStoreState>((set, get) => ({
   retry: () =>
     set({
       attemptNonce: newNonce(),
+      // A retry is a new attempt with a new idempotency key, so the previous
+      // preparation's authorisations no longer belong to it.
+      lockedPlan: null,
       failureReason: null,
       needsManualReview: false,
       flowState: 'amount_entered',

@@ -5,6 +5,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { CryptoLogo, hasCryptoLogo } from '@/components/ui/CryptoLogo';
 import { BankLogo } from '@/components/ui/BankLogo';
 import type { PaymentSource, SourceStatus } from '@/types/payment';
+import { spendableBalance } from '@/services/orchestration';
 
 interface SourceCardProps {
   source: PaymentSource;
@@ -37,6 +38,16 @@ export function SourceCard({ source, status, splitAmount, onPress }: SourceCardP
       return `$${source.rawBalance} → ₦${Math.round(source.balance).toLocaleString()}`;
     return `$${source.rawBalance} → ₦${Math.round(source.balance).toLocaleString()}`;
   };
+
+  /**
+   * The engine plans against spendable balance, not the headline figure. Where
+   * the two differ — a pending debit, a required minimum — showing only the
+   * headline sets up an unexplained "insufficient funds" on an account the
+   * user can see has money in it.
+   */
+  const spendable = spendableBalance(source);
+  const withheld = source.rawBalance - spendable;
+  const showsWithheld = withheld > 0 && source.rawCurrency === 'NGN';
 
   const borderColor = cfg.showBorder ? cfg.color : Colors.outlineVariant;
 
@@ -79,6 +90,12 @@ export function SourceCard({ source, status, splitAmount, onPress }: SourceCardP
             ? `Paying ₦${splitAmount.toLocaleString()}`
             : formatBalance()}
         </Text>
+        {showsWithheld && status !== 'split' ? (
+          <Text style={styles.spendable}>
+            ₦{Math.round(spendable).toLocaleString()} available ·{' '}
+            ₦{Math.round(withheld).toLocaleString()} pending
+          </Text>
+        ) : null}
       </View>
       <View style={[styles.tag, { backgroundColor: cfg.color + '20' }]}>
         <Icon name={cfg.icon} size={11} color={cfg.color} />
@@ -118,6 +135,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.onSurfaceVariant,
     marginTop: 2,
+  },
+  spendable: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: Colors.onSurfaceMuted,
+    marginTop: 1,
   },
   tag: {
     flexDirection: 'row',
