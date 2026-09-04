@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
@@ -98,7 +98,11 @@ export default function AddCryptoScreen() {
     <View style={styles.wrap}>
       <ScreenHeader title="Add Crypto Wallet" />
 
-      <View style={styles.list}>
+      <ScrollView
+        contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {COINS.map((coin) => (
           <View key={coin.code} style={styles.coinCard}>
             <View style={styles.coinHeader}>
@@ -137,7 +141,7 @@ export default function AddCryptoScreen() {
             onChangeText={setBinanceKey}
             placeholder="Read-only API key"
             placeholderTextColor={Colors.onSurfaceMuted}
-            style={styles.addressInput}
+            style={styles.apiKeyInput}
             secureTextEntry
           />
           <Button label="Connect Binance" variant="secondary" onPress={() => handleConnectExchange('Binance', binanceKey)} disabled={!binanceKey} />
@@ -150,14 +154,14 @@ export default function AddCryptoScreen() {
             onChangeText={setBybitKey}
             placeholder="Read-only API key"
             placeholderTextColor={Colors.onSurfaceMuted}
-            style={styles.addressInput}
+            style={styles.apiKeyInput}
             secureTextEntry
           />
           <Button label="Connect Bybit" variant="secondary" onPress={() => handleConnectExchange('Bybit', bybitKey)} disabled={!bybitKey} />
         </View>
 
         <Text style={styles.disclosure}>0.5% spread applies on crypto → NGN conversion at payment time.</Text>
-      </View>
+      </ScrollView>
 
       <Modal visible={scanningFor !== null} animationType="slide">
         <View style={styles.cameraWrap}>
@@ -210,11 +214,29 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   addressInput: {
+    // `flex: 1` is correct here and only here: this input sits in `addressRow`,
+    // a row, where it should take the width the scan button doesn't.
     flex: 1,
     backgroundColor: Colors.surfaceContainerHighest,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurface,
+  },
+  /**
+   * The exchange cards stack vertically, so the address input's `flex: 1`
+   * cannot be reused: in a column it makes the field claim the leftover
+   * vertical space and overlap the label above and the button below. Same
+   * appearance, no flex, and its own gap to the Connect button.
+   */
+  apiKeyInput: {
+    backgroundColor: Colors.surfaceContainerHighest,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.md,
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodySm.fontSize,
     color: Colors.onSurface,

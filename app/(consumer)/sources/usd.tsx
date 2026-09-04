@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
@@ -53,7 +53,11 @@ export default function AddUSDScreen() {
     <View style={styles.wrap}>
       <ScreenHeader title="Add USD Account" />
 
-      <View style={styles.list}>
+      <ScrollView
+        contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {USD_PROVIDERS.map((provider) => (
           <TouchableOpacity
             key={provider.key}
@@ -81,7 +85,7 @@ export default function AddUSDScreen() {
         </View>
 
         <Button label="Link Account" trailingArrow onPress={handleLink} disabled={!selected} style={styles.submit} />
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -93,6 +97,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
   },
   card: {
     flexDirection: 'row',

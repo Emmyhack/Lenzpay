@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, FlatList, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
@@ -56,7 +56,11 @@ export default function AddBankScreen() {
     <View style={styles.wrap}>
       <ScreenHeader title="Add Nigerian Bank" />
 
-      <View style={styles.form}>
+      <ScrollView
+        contentContainerStyle={styles.form}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.label}>Bank</Text>
         <TouchableOpacity onPress={() => setPickerOpen(true)} style={styles.bankSelector}>
           <View style={styles.bankSelectorLeft}>
@@ -106,7 +110,7 @@ export default function AddBankScreen() {
         </View>
 
         <Button label="Link Account" trailingArrow onPress={handleLink} disabled={!canSubmit} loading={linking} style={styles.submit} />
-      </View>
+      </ScrollView>
 
       <Modal visible={pickerOpen} animationType="slide" onRequestClose={() => setPickerOpen(false)}>
         <View style={styles.pickerWrap}>
@@ -150,6 +154,7 @@ const styles = StyleSheet.create({
   },
   form: {
     paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
   },
   label: {
     fontFamily: 'Inter_500Medium',

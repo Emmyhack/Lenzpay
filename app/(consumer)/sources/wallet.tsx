@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
@@ -58,7 +58,11 @@ export default function AddWalletScreen() {
     <View style={styles.wrap}>
       <ScreenHeader title="Add Mobile Wallet" subtitle="Connect via secure OAuth" />
 
-      <View style={styles.grid}>
+      <ScrollView
+        contentContainerStyle={styles.grid}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {WALLET_PROVIDERS.map((provider) => (
           <TouchableOpacity
             key={provider.key}
@@ -77,7 +81,7 @@ export default function AddWalletScreen() {
             )}
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -92,6 +96,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: Spacing.xl,
     gap: Spacing.md,
+    paddingBottom: Spacing.xxxl,
   },
   card: {
     width: '47%',
