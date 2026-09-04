@@ -27,8 +27,6 @@ export function Slider({ value, onChange }: SliderProps) {
     position.value = value * nextTravel;
   };
 
-  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max);
-
   const emitChange = (ratio: number) => onChange(ratio);
 
   const pan = Gesture.Pan()
@@ -36,7 +34,7 @@ export function Slider({ value, onChange }: SliderProps) {
       startPosition.value = position.value;
     })
     .onUpdate((e) => {
-      const next = clamp(startPosition.value + e.translationX, travel);
+      const next = Math.min(Math.max(startPosition.value + e.translationX, 0), travel);
       position.value = next;
       runOnJS(emitChange)(travel > 0 ? next / travel : 0);
     })
@@ -45,7 +43,7 @@ export function Slider({ value, onChange }: SliderProps) {
     });
 
   const tap = Gesture.Tap().onEnd((e) => {
-    const next = clamp(e.x - THUMB_SIZE / 2, travel);
+    const next = Math.min(Math.max(e.x - THUMB_SIZE / 2, 0), travel);
     position.value = withSpring(next, { damping: 20, stiffness: 300 });
     runOnJS(emitChange)(travel > 0 ? next / travel : 0);
   });

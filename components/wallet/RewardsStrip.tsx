@@ -33,7 +33,10 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.xl,
     marginTop: Spacing.md,
     backgroundColor: Colors.surfaceContainerHigh,
-    borderRadius: Radius.pill,
+    // Matches the cards it sits among (QuickActions, AssetCard). A pill made
+    // this the only capsule on a screen of rectangles, which read as a chip
+    // rather than as the tappable row it is.
+    borderRadius: Radius.lg,
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.lg,
     flexDirection: 'row',

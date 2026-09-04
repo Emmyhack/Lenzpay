@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDismiss } from '@/hooks/useDismiss';
 import { Icon } from '@/components/ui/Icon';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 
@@ -14,7 +14,9 @@ interface ScreenHeaderProps {
 }
 
 export function ScreenHeader({ title, subtitle, showBack = true, onBack, right }: ScreenHeaderProps) {
-  const router = useRouter();
+  // Any of these screens can be opened directly, so the back button must not
+  // assume a history exists — see useDismiss.
+  const dismiss = useDismiss('/(consumer)');
   const insets = useSafeAreaInsets();
 
   return (
@@ -22,7 +24,7 @@ export function ScreenHeader({ title, subtitle, showBack = true, onBack, right }
       <View style={styles.left}>
         {showBack && (
           <TouchableOpacity
-            onPress={onBack ?? (() => router.back())}
+            onPress={onBack ?? dismiss}
             style={styles.backButton}
             accessibilityRole="button"
             accessibilityLabel="Go back"
