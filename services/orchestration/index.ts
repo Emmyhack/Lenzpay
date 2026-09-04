@@ -2,8 +2,10 @@
  * Funding Orchestration Engine — public surface.
  *
  * §5 of the product spec, in code:
- *   ranking.ts   — §5.2 source ranking (priority_score)
+ *   capabilities.ts — what each rail can do, resolved *before* planning
+ *   ranking.ts   — §5.2 source ranking (priority_score), capability-aware
  *   planner.ts   — §5.3 single-source fast path, §5.4 the waterfall "scrape"
+ *   prepare.ts   — authorise, reserve, verify, lock → the LockedPlan
  *   executor.ts  — §5.4 hold-then-capture, §5.7 failure and rollback
  *   fx.ts        — §5.5 rate locks, fee schedule, re-quote tolerance
  *   ledger.ts    — §6.1 double-entry ledger and per-leg audit trail
@@ -24,8 +26,46 @@ export type { PlanOptions } from './planner';
 
 export { rankSources, totalAvailable, partitionByReserve } from './ranking';
 
-export { executePlan, chooseStrategy, describeLegs } from './executor';
-export type { ExecutorDeps, ExecuteParams } from './executor';
+export {
+  executePlan,
+  chooseStrategy,
+  strategyForLocked,
+  describeLegs,
+  refreshExpiredQuotes,
+} from './executor';
+export type { ExecutorDeps, ExecuteParams, RefreshOutcome } from './executor';
+
+export {
+  CapabilityRegistry,
+  capabilityRegistry,
+  railProfile,
+  balanceReadable,
+  guaranteeFor,
+  guaranteeStrength,
+  weakestGuarantee,
+  requiresFloat,
+  balanceCertainty,
+  latencyScore,
+  spendableBalance,
+  successProbability,
+} from './capabilities';
+
+export {
+  preparePlan,
+  releaseLockedPlan,
+  lockedPlanExpired,
+  toFundingPlan,
+  describeGuarantee,
+  floatExposureOf,
+} from './prepare';
+export type {
+  BalanceProvider,
+  BalanceReading,
+  SufficiencyReading,
+  PrepareDeps,
+  PrepareParams,
+  ReleaseOutcome,
+} from './prepare';
 
 export {
   CURRENCY_SYMBOL,

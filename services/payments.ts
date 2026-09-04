@@ -1,8 +1,13 @@
 import { delay } from '@/mock/delay';
 import { Config } from '@/constants/config';
 import type { PaymentMode, Transaction } from '@/types/payment';
-import type { ExecutionResult, FundingPlan, Payee } from '@/types/orchestration';
-import { deriveIdempotencyKey, paymentEngine } from './orchestration';
+import type {
+  ExecutionResult,
+  FundingPlan,
+  LockedPlan,
+  Payee,
+} from '@/types/orchestration';
+import { deriveIdempotencyKey, paymentEngine, toFundingPlan } from './orchestration';
 import { REWARDS_BUDGET_MODEL, cashbackForPayment, estimateUnitEconomics } from './pricing';
 import { CASHBACK_RATES } from '@/mock/data';
 
@@ -15,10 +20,17 @@ const runtimeTransactions = new Map<string, Transaction>();
 
 export interface InitiatePaymentParams {
   payee: Payee;
-  /** The plan the user actually confirmed. Never rebuild it here — that would
-   *  risk charging different accounts than the ones shown on the confirm
-   *  screen. */
-  plan: FundingPlan;
+  /**
+   * The plan the user actually confirmed. Never rebuild it here — that would
+   * risk charging different accounts than the ones shown on the confirm
+   * screen.
+   *
+   * Pass a `LockedPlan` where the confirm screen has already prepared one:
+   * its legs carry real authorisations, so nothing is re-authorised and the
+   * settlement strategy is read off the guarantees rather than inferred. A
+   * bare `FundingPlan` is prepared here instead, immediately before execution.
+   */
+  plan: FundingPlan | LockedPlan;
   mode: PaymentMode;
   userId: string;
   /** Distinguishes a deliberate repeat payment from a retry of the same one. */
@@ -34,6 +46,8 @@ export interface InitiatePaymentResult {
   /** True when a failure left money moved that couldn't be automatically returned. */
   needsManualReview?: boolean;
   execution?: ExecutionResult;
+  /** The prepared plan that ran, so a receipt can show per-leg guarantees. */
+  locked?: LockedPlan;
 }
 
 /**
@@ -45,16 +59,42 @@ export async function initiatePayment(
 ): Promise<InitiatePaymentResult> {
   const { payee, plan, mode, merchantCategory = 'other', rewardsTier = 'Bronze' } = params;
 
+  // Derived from the plan the user confirmed, before preparing it — the key
+  // must identify the payment, not the authorisation attempt, or a retry would
+  // look like a new payment and charge twice.
+  const confirmedPlan: FundingPlan = isLockedPlan(plan) ? toFundingPlan(plan) : plan;
+
   const idempotencyKey = deriveIdempotencyKey({
     userId: params.userId,
     payeeId: payee.id,
-    amount: plan.amount,
-    currency: plan.currency,
-    plan,
+    amount: confirmedPlan.amount,
+    currency: confirmedPlan.currency,
+    plan: confirmedPlan,
     attemptNonce: params.attemptNonce,
   });
 
-  const execution = await paymentEngine.execute(plan, payee, idempotencyKey, params.userId);
+  // Authorise before executing. A plan that has not been prepared is an
+  // estimate built from cached balances; preparing it turns each leg into
+  // something either genuinely held or explicitly float-backed, and a failure
+  // here has moved no money at all.
+  let locked: LockedPlan;
+  if (isLockedPlan(plan)) {
+    locked = plan;
+  } else {
+    const preparation = await paymentEngine.prepare(plan, params.userId, idempotencyKey);
+    if (!preparation.ok) {
+      return {
+        success: false,
+        failureReason: preparation.message,
+        // A prepare that could not release everything it placed has left holds
+        // on the user's accounts. That needs a human, not a retry.
+        needsManualReview: !preparation.fullyRolledBack,
+      };
+    }
+    locked = preparation.locked;
+  }
+
+  const execution = await paymentEngine.execute(locked, payee, idempotencyKey, params.userId);
 
   if (!execution.ok) {
     return {
@@ -77,12 +117,12 @@ export async function initiatePayment(
   // which is always at least the final figure, so the budget is never
   // optimistic.
   const headlineRate = cashbackRate * multiplier;
-  const pointsUpperBound = Math.round(plan.amount * headlineRate * POINTS_PER_NGN_CASHBACK);
+  const pointsUpperBound = Math.round(locked.amount * headlineRate * POINTS_PER_NGN_CASHBACK);
 
   const cashbackNGN = Math.round(
     cashbackForPayment({
       headlineRate,
-      economicsBeforeRewards: estimateUnitEconomics({ plan, model: REWARDS_BUDGET_MODEL }),
+      economicsBeforeRewards: estimateUnitEconomics({ plan: toFundingPlan(locked), model: REWARDS_BUDGET_MODEL }),
       points: pointsUpperBound,
       model: REWARDS_BUDGET_MODEL,
     })
@@ -93,7 +133,7 @@ export async function initiatePayment(
     id: execution.transactionId,
     merchantName: payee.displayName,
     category: merchantCategory,
-    amount: plan.amount,
+    amount: locked.amount,
     direction: 'debit',
     sourceLabel: describeSources(execution),
     mode,
@@ -113,6 +153,7 @@ export async function initiatePayment(
     success: true,
     execution,
     transaction,
+    locked,
   };
 }
 
@@ -160,4 +201,9 @@ export async function fetchTransactions(): Promise<Transaction[]> {
 export async function fetchTransactionById(id: string): Promise<Transaction | undefined> {
   const all = await fetchTransactions();
   return all.find((t) => t.id === id);
+}
+
+/** A prepared plan carries a guarantee per leg; a raw plan does not. */
+function isLockedPlan(plan: FundingPlan | LockedPlan): plan is LockedPlan {
+  return 'weakestGuarantee' in plan && 'planId' in plan;
 }

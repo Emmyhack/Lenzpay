@@ -5,9 +5,19 @@ import {
   type CurrencyCode,
   type PaymentSource,
 } from '@/types/payment';
-import type { RankedSource, ScoreBreakdown } from '@/types/orchestration';
-import { Orchestration } from '@/constants/config';
+import type { RankedSource, ScoreBreakdown, SourceCapabilities } from '@/types/orchestration';
+import { Orchestration, Treasury as TreasuryConfig } from '@/constants/config';
 import { feeInSettlementCurrency, getQuote, toSettlement, type RateFeed } from './fx';
+import {
+  balanceCertainty,
+  capabilityRegistry,
+  guaranteeFor,
+  guaranteeStrength,
+  latencyScore,
+  requiresFloat,
+  spendableBalance,
+  type CapabilityRegistry,
+} from './capabilities';
 
 /**
  * Source ranking (§5.2).
@@ -54,6 +64,10 @@ export interface RankOptions {
   lockWindowMs?: number;
   /** Rewards-tier FX spread waiver, 0..1. */
   spreadDiscount?: number;
+  /** Resolves what each source's rail can do. Defaults to the global registry. */
+  capabilities?: CapabilityRegistry;
+  /** Balances older than this stop counting as freshly observed. */
+  balanceFreshnessMs?: number;
 }
 
 /**
@@ -73,12 +87,24 @@ export function rankSources(
 ): RankedSource[] {
   const weights = Orchestration.rankingWeights;
 
+  const registry = options.capabilities ?? capabilityRegistry;
+  const now = options.now ?? Date.now();
+  const freshnessMs = options.balanceFreshnessMs ?? TreasuryConfig.balanceFreshnessMs;
+
   const ranked = sources.map<RankedSource>((source) => {
     const sourceCurrency = source.rawCurrency;
     const quote = getQuote(sourceCurrency, currency, feed, options);
+    const capabilities = registry.resolve(source);
 
-    const normalizedBalance = toSettlement(quote, source.rawBalance);
-    const fee = feeInSettlementCurrency(quote, source.rawBalance);
+    // Plan against what is actually spendable, never the headline balance.
+    // A leg sized off a figure that includes pending debits and required
+    // minimums will pass planning and then fail collection.
+    const usableBalance = plannableBalance(source, capabilities);
+
+    const normalizedBalance = toSettlement(quote, usableBalance);
+    const fee = feeInSettlementCurrency(quote, usableBalance);
+
+    const guarantee = guaranteeFor(capabilities);
 
     const userPriority = (source.priorityWeight ?? DEFAULT_PRIORITY_WEIGHT) / 100;
     const currencyProximity = currencyProximityScore(sourceCurrency, currency);
@@ -86,11 +112,24 @@ export function rankSources(
     const reliability = source.reliability ?? DEFAULT_RELIABILITY;
     const reservePenalty = source.isReserve ? weights.reservePenalty : 0;
 
+    const settlementCertainty = guaranteeStrength(guarantee);
+    const certaintyOfBalance = balanceCertainty(source, capabilities, now, freshnessMs);
+    const railReliability = 1 - Math.min(1, Math.max(0, capabilities.failureRate));
+    const latency = latencyScore(capabilities);
+    const floatExposurePenalty = requiresFloat(capabilities)
+      ? weights.floatExposurePenalty
+      : 0;
+
     const total =
       userPriority * weights.userPriority +
       currencyProximity * weights.currencyProximity +
       conversionCost * weights.conversionCost +
-      reliability * weights.reliability -
+      reliability * weights.reliability +
+      settlementCertainty * weights.settlementCertainty +
+      certaintyOfBalance * weights.balanceCertainty +
+      railReliability * weights.railReliability +
+      latency * weights.latency -
+      floatExposurePenalty -
       reservePenalty;
 
     const breakdown: ScoreBreakdown = {
@@ -99,6 +138,11 @@ export function rankSources(
       conversionCost,
       reliability,
       reservePenalty,
+      settlementCertainty,
+      balanceCertainty: certaintyOfBalance,
+      railReliability,
+      latency,
+      floatExposurePenalty,
       total,
     };
 
@@ -110,6 +154,8 @@ export function rankSources(
       quote,
       score: total,
       breakdown,
+      capabilities,
+      guarantee,
     };
   });
 
@@ -152,4 +198,33 @@ export function partitionByReserve(ranked: RankedSource[]): {
     preferred: ranked.filter((entry) => !entry.source.isReserve),
     reserve: ranked.filter((entry) => entry.source.isReserve),
   };
+}
+
+/**
+ * How much of this source the planner is allowed to commit.
+ *
+ * Three cases, and the third is the one that matters:
+ *
+ *  - `exact`            — the spendable balance, which is the headline balance
+ *                         less pending debits, minimums and known holds.
+ *  - `sufficiency_only` — the provider will confirm "can this account provide
+ *                         X?" without disclosing a figure. That answers the
+ *                         only question planning actually needs, so the source
+ *                         is planned at the amount asked for.
+ *  - `none`             — a card. Nothing is knowable before authorisation, so
+ *                         `rawBalance` is treated as a declared limit and the
+ *                         leg is provisional until `prepare()` authorises it.
+ *                         `balanceCertainty` scores 0 to make that explicit
+ *                         rather than letting an assumed number look verified.
+ */
+function plannableBalance(
+  source: PaymentSource,
+  capabilities: SourceCapabilities
+): number {
+  if (capabilities.balanceVisibility === 'sufficiency_only') {
+    // Cap at the declared balance so a sufficiency check can never invent
+    // capacity the account was never claimed to have.
+    return Math.min(spendableBalance(source), Math.max(source.rawBalance, 0));
+  }
+  return spendableBalance(source);
 }

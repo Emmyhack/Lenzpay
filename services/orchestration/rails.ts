@@ -312,6 +312,9 @@ export function createDevRailRegistry(
     wallet: { id: 'wallet_provider', latencyMs: 0, supportsNativeHold: false },
     usd: { id: 'fx_partner', latencyMs: 0 },
     crypto: { id: 'crypto_custody', latencyMs: 0 },
+    // Cards are the one launch-corridor rail with a real authorise/capture.
+    card: { id: 'card_acquirer', latencyMs: 0 },
+    custody: { id: 'custody_partner', latencyMs: 0 },
   };
 
   const registry = new RailRegistry();

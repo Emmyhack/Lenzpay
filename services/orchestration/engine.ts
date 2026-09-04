@@ -1,9 +1,25 @@
 import type { CurrencyCode, PaymentSource } from '@/types/payment';
-import type { ExecutionResult, FundingPlan, Payee, PlanResult } from '@/types/orchestration';
+import type {
+  ExecutionResult,
+  FundingPlan,
+  LockedPlan,
+  Payee,
+  PlanResult,
+  PrepareResult,
+} from '@/types/orchestration';
 import { Config } from '@/constants/config';
 import { devRateFeed, type NgnRateTable, type RateFeed } from './fx';
 import { planPayment, type PlanOptions } from './planner';
-import { executePlan, type ExecutorDeps } from './executor';
+import { executePlan, strategyForLocked, type ExecutorDeps } from './executor';
+import {
+  preparePlan,
+  releaseLockedPlan,
+  toFundingPlan,
+  type BalanceProvider,
+  type PrepareDeps,
+  type ReleaseOutcome,
+} from './prepare';
+import { CapabilityRegistry, capabilityRegistry } from './capabilities';
 import { Ledger, ledger } from './ledger';
 import { IdempotencyStore } from './idempotency';
 import { Treasury, treasury } from './treasury';
@@ -55,6 +71,14 @@ export interface EngineConfig {
   idempotency: IdempotencyStore<ExecutionResult>;
   treasury: Treasury;
   collections: CollectionQueue;
+  /** What each connected source can do. Consulted before planning, not after. */
+  capabilities: CapabilityRegistry;
+  /**
+   * Live balance access for `prepare()`. Absent means float-backed legs are
+   * verified against the balance the plan was built from — fine in
+   * development, an unverified credit decision in production.
+   */
+  balances?: BalanceProvider;
 }
 
 function defaultConfig(): EngineConfig {
@@ -85,6 +109,7 @@ function defaultConfig(): EngineConfig {
     ),
     treasury,
     collections: collectionQueue,
+    capabilities: capabilityRegistry,
   };
 }
 
@@ -109,9 +134,36 @@ export const paymentEngine = {
     return planPayment(sources, amount, currency, getRateFeed(), options);
   },
 
-  /** Execute a plan. Moves money exactly once per idempotency key. */
+  /**
+   * Commit a plan: re-lock rates, authorise what can be authorised, verify
+   * what cannot, and obtain float cover for the remainder.
+   *
+   * This is where every external side effect lives, which is precisely what
+   * keeps `plan()` safe to call on every keystroke. Returns a `LockedPlan` —
+   * the immutable object the confirmation screen renders and `execute()` runs.
+   */
+  prepare(plan: FundingPlan, userId: string, idempotencyKey: string): Promise<PrepareResult> {
+    const deps: PrepareDeps = {
+      rails: config.rails,
+      feed: getRateFeed(),
+      treasury: config.treasury,
+      capabilities: config.capabilities,
+      balances: config.balances,
+    };
+    return preparePlan({ plan, userId, idempotencyKey }, deps);
+  },
+
+  /**
+   * Execute a plan. Moves money exactly once per idempotency key.
+   *
+   * Accepts a `LockedPlan` — the intended path, since a prepared plan carries
+   * real per-leg guarantees and the strategy can be read off them rather than
+   * guessed from the rails. A bare `FundingPlan` is still accepted so callers
+   * that have not adopted `prepare()` keep working; those infer the strategy
+   * from rail capability as before.
+   */
   execute(
-    plan: FundingPlan,
+    plan: FundingPlan | LockedPlan,
     payee: Payee,
     idempotencyKey: string,
     userId: string
@@ -125,7 +177,39 @@ export const paymentEngine = {
       treasury: config.treasury,
       collections: config.collections,
     };
+
+    if (isLocked(plan)) {
+      return executePlan(
+        {
+          plan: toFundingPlan(plan),
+          payee,
+          idempotencyKey,
+          userId,
+          strategy: strategyForLocked(plan),
+        },
+        deps
+      );
+    }
+
     return executePlan({ plan, payee, idempotencyKey, userId }, deps);
+  },
+
+  /**
+   * Give back everything a prepared plan is holding.
+   *
+   * Because `prepare()` runs when the user reaches the confirmation screen,
+   * real authorisations exist before they authenticate. If they cancel or
+   * navigate away, those holds must be released rather than left to expire —
+   * otherwise the user is left unable to spend money on a payment they
+   * explicitly declined. Idempotent, so an unmount handler may call it twice.
+   */
+  abandon(locked: LockedPlan, idempotencyKey: string): Promise<ReleaseOutcome> {
+    return releaseLockedPlan(locked, { rails: config.rails }, idempotencyKey);
+  },
+
+  /** What every connected source can actually do, for diagnostics and UI. */
+  capabilities(): CapabilityRegistry {
+    return config.capabilities;
   },
 
   ledger(): Ledger {
@@ -175,3 +259,8 @@ export const paymentEngine = {
     );
   },
 };
+
+/** A prepared plan carries a guarantee per leg; a raw plan does not. */
+function isLocked(plan: FundingPlan | LockedPlan): plan is LockedPlan {
+  return 'weakestGuarantee' in plan && 'planId' in plan;
+}

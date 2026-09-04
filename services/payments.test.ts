@@ -40,6 +40,8 @@ function useDeterministicEngine(
       .registerType('bank', rail)
       .registerType('wallet', rail)
       .registerType('usd', rail)
+      .registerType('custody', rail)
+      .registerType('card', rail)
       .registerType('crypto', rail),
     settlementRail: createMockSettlementRail({ fail: options.settlementFails }),
     ledger,
@@ -67,6 +69,14 @@ function bank(id: string, rawBalance: number, label: string): PaymentSource {
 
 function usd(id: string, rawBalance: number, label: string): PaymentSource {
   return { ...bank(id, rawBalance, label), type: 'usd', rawCurrency: 'USD' };
+}
+
+/**
+ * A custody account — one of the few rails that can genuinely hold funds, so
+ * a plan built on it runs hold-then-capture rather than float-fronted.
+ */
+function custody(id: string, rawBalance: number, label: string): PaymentSource {
+  return { ...bank(id, rawBalance, label), type: 'custody' };
 }
 
 function planFor(sources: PaymentSource[], amount: number) {
@@ -134,10 +144,13 @@ test('a cross-currency payment surfaces the rate on the receipt', async () => {
   assert.match(result.transaction!.fxRate ?? '', /^1 USD = ₦/);
 });
 
-test('a failed payment reports the reason and no transaction', async () => {
+test('a failed capture reports the reason and no transaction', async () => {
+  // Custody accounts genuinely authorise, so this plan runs hold-then-capture
+  // and a declined capture is a failed payment. On a bank rail it would not
+  // be — see the float-fronted case below.
   useDeterministicEngine({ failCaptureFor: new Set(['src_b']) });
   const plan = planFor(
-    [bank('src_a', 3_000, 'GTBank'), bank('src_b', 2_500, 'Access Bank')],
+    [custody('src_a', 3_000, 'Grey Custody'), custody('src_b', 2_500, 'Partner Custody')],
     4_500
   );
 
@@ -147,6 +160,23 @@ test('a failed payment reports the reason and no transaction', async () => {
   assert.equal(result.transaction, undefined);
   assert.match(result.failureReason ?? '', /declined/);
   assert.equal(result.needsManualReview, false, 'the captured leg was refunded');
+});
+
+test('a bank collection failure does not fail the payment (ADR-000)', async () => {
+  // Bank rails cannot authorise, so the float pays the payee first and
+  // collects afterwards. A failed collection is Lenz's exposure to recover,
+  // not a payment the user has to be told failed.
+  useDeterministicEngine({ failCaptureFor: new Set(['src_b']) });
+  const plan = planFor(
+    [bank('src_a', 3_000, 'GTBank'), bank('src_b', 2_500, 'Access Bank')],
+    4_500
+  );
+
+  const result = await initiatePayment({ ...BASE, mode: 'split', payee: payee(), plan });
+
+  assert.equal(result.success, true, 'the payee was paid from float, once');
+  assert.equal(result.locked?.weakestGuarantee, 'FLOAT_BACKED');
+  assert.equal(result.locked?.requiresFloat, true);
 });
 
 test('the same payment submitted twice charges once', async () => {

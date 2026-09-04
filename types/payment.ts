@@ -1,9 +1,17 @@
 import type { IconName } from '@/components/ui/Icon';
 // Type-only, so the cycle with orchestration.ts is erased at build time.
-import type { FundingLeg } from './orchestration';
+import type { FundingLeg, SourceCapabilities } from './orchestration';
 
 export type CurrencyCode = 'NGN' | 'USD' | 'GBP' | 'EUR' | 'BTC' | 'USDT' | 'ETH';
-export type SourceType = 'bank' | 'wallet' | 'usd' | 'crypto';
+/**
+ * Product category of a funding source.
+ *
+ * `card` and `custody` are separate from `bank` and `usd` because they differ
+ * in *capability*, not presentation: a card can authorise but cannot disclose a
+ * balance, and a custody account can genuinely ring-fence funds. Collapsing
+ * either into `bank` would hide the one property the planner most needs.
+ */
+export type SourceType = 'bank' | 'wallet' | 'usd' | 'crypto' | 'card' | 'custody';
 
 /**
  * Decimal places each currency settles to. The orchestration engine rounds
@@ -73,6 +81,25 @@ export interface PaymentSource {
   reliability?: number;
   /** Opaque handle for the aggregator/custody provider backing this source. */
   providerRef?: string;
+  /**
+   * What is actually spendable right now, in the native currency — the ledger
+   * balance less pending debits, required minimums and known holds.
+   *
+   * The planner must use this rather than `rawBalance`. They differ routinely
+   * (a ₦100,000 balance with a ₦10,000 pending debit and a ₦5,000 minimum is
+   * ₦85,000 of real capacity), and planning against the larger number produces
+   * legs that pass planning and fail collection. Falls back to `rawBalance`
+   * when a provider cannot break the figure down.
+   */
+  spendableRawBalance?: number;
+  /**
+   * Provider-reported capability overrides, merged over the rail defaults.
+   *
+   * Capabilities vary *within* a rail — one aggregator exposes authorise and
+   * capture, another only a single-shot debit — so they have to be per-source
+   * facts, not per-type assumptions.
+   */
+  capabilities?: Partial<SourceCapabilities>;
 }
 
 /** Applied when a source carries no explicit user preference. */

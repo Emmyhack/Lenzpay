@@ -49,6 +49,16 @@ export function cryptoWallet(
   return source({ type: 'crypto', rawCurrency, rawBalance, ...overrides });
 }
 
+/** A card: no readable balance, but a real authorise/capture primitive. */
+export function card(limit: number, overrides: Partial<PaymentSource> = {}) {
+  return source({ type: 'card', rawCurrency: 'NGN', rawBalance: limit, ...overrides });
+}
+
+/** A custody account we control — funds here can genuinely be ring-fenced. */
+export function custodyAccount(rawBalance: number, overrides: Partial<PaymentSource> = {}) {
+  return source({ type: 'custody', rawCurrency: 'NGN', rawBalance, ...overrides });
+}
+
 export function payee(overrides: Partial<Payee> = {}): Payee {
   return {
     id: 'payee_1',

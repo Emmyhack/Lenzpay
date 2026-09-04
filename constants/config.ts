@@ -128,6 +128,41 @@ export const Orchestration = {
     reliability: 1.5,
     /** Subtracted outright when a source is flagged as reserve funds. */
     reservePenalty: 10.0,
+
+    // ---- Capability-aware terms -----------------------------------------
+    // These are what let the planner trade "I can see this money" against
+    // "I can actually lock this money", rather than only ranking on balance.
+    /**
+     * Strength of the guarantee the rail can offer once prepared.
+     *
+     * Deliberately below `currencyProximity` and `conversionCost`. Execution
+     * certainty is Lenz's risk; conversion cost is the *user's* money. A
+     * custody account is genuinely safer to execute than a bank account, but
+     * not so much safer that it justifies converting someone's dollars while
+     * their naira sits idle. These weights discriminate among comparable
+     * sources; they must not overturn the user-facing cost preference.
+     */
+    settlementCertainty: 1.2,
+    /**
+     * Trust in the balance being planned against. A card discloses no balance
+     * at all yet is still a good leg, so uncertainty here must not be
+     * disqualifying — it is offset by that card's settlement certainty.
+     */
+    balanceCertainty: 1.0,
+    /** Rail-level failure prior, separate from this account's own history. */
+    railReliability: 0.8,
+    /** Settlement speed. Deliberately small: slow beats failed. */
+    latency: 0.3,
+    /**
+     * Subtracted when a leg can offer no reservation and the float must carry
+     * the collection risk (ADR-004).
+     *
+     * Small, and partly overlapping with `settlementCertainty` by design: that
+     * term prices *execution* uncertainty, this one prices the balance-sheet
+     * exposure the float takes on. They move together but are not the same
+     * risk, and treasury policy should be able to tune one without the other.
+     */
+    floatExposurePenalty: 0.3,
   },
 } as const;
 

@@ -1,4 +1,5 @@
 import type {
+  LockedPlan,
   ExecutionFailure,
   ExecutionFailureStage,
   ExecutionResult,
@@ -93,6 +94,24 @@ export function chooseStrategy(plan: FundingPlan, rails: RailRegistry): Settleme
   return allSupportHolds ? 'hold_then_capture' : 'float_fronted';
 }
 
+/**
+ * Strategy for a plan that has already been prepared.
+ *
+ * Strictly better than inferring from the rails, because by this point we are
+ * not predicting what a rail *could* do — we are reading what it actually did.
+ * A leg holds a real authorisation or it does not.
+ *
+ * `SIGNED` counts as unprotected here even though the user approved it: an
+ * on-chain transfer cannot be released once broadcast, so a plan mixing it
+ * with other legs still needs the float to stay atomic.
+ */
+export function strategyForLocked(locked: LockedPlan): SettlementStrategy {
+  const allGuaranteed = locked.legs.every(
+    (leg) => leg.guarantee === 'PREAUTHORIZED' || leg.guarantee === 'RESERVED'
+  );
+  return allGuaranteed ? 'hold_then_capture' : 'float_fronted';
+}
+
 export async function executePlan(
   params: ExecuteParams,
   deps: ExecutorDeps
@@ -179,6 +198,15 @@ async function executeHoldThenCapture(
   const heldLegs: FundingLeg[] = [];
 
   for (const leg of holdOrder) {
+    // A leg authorised during `prepare()` is already held. Re-holding would
+    // place a second authorisation against the same funds — on a card that is
+    // a visible duplicate pending charge, and it double-counts the user's
+    // available balance.
+    if (leg.status === 'held' && leg.holdRef) {
+      heldLegs.push(leg);
+      continue;
+    }
+
     const rail = deps.rails.resolve(leg.source);
     const result = await rail.hold({
       legId: leg.id,
@@ -490,7 +518,7 @@ async function collectLeg(
 // Rate-lock revalidation (§5.5)
 // ---------------------------------------------------------------------------
 
-type RefreshOutcome =
+export type RefreshOutcome =
   | { ok: true; plan: FundingPlan }
   | { ok: false; reason: string };
 
@@ -502,7 +530,15 @@ type RefreshOutcome =
  * lands. If that new debit exceeds the account's balance, or the price moved
  * more than the tolerance, the user has to re-confirm.
  */
-function refreshExpiredQuotes(
+/**
+ * Re-quote any leg whose rate lock has lapsed (§5.5).
+ *
+ * Exported because `prepare()` runs the same revalidation before it locks a
+ * plan. Two copies of this rule would be two places for the drift tolerance to
+ * diverge, and a plan that revalidates differently at prepare and execute is
+ * exactly the drift the single-plan-object design exists to prevent.
+ */
+export function refreshExpiredQuotes(
   plan: FundingPlan,
   feed: RateFeed,
   now: number

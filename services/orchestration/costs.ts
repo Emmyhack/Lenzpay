@@ -45,6 +45,13 @@ const LIST_PRICE_RAIL_COSTS: Record<SourceType, RailCostTerms> = {
   usd: { flatFee: 0, rate: 0.001, cap: 500, flatFeeThreshold: 0 },
   // Custody transfers cost network gas, roughly flat per movement.
   crypto: { flatFee: 0, rate: 0.002, cap: 800, flatFeeThreshold: 0 },
+  // Card acquiring is priced as a percentage with a cap, and carries no flat
+  // minimum — which makes it the cheapest rail for the *small* legs where a
+  // bank's flat ₦55 dominates, and the most expensive for large ones.
+  card: { flatFee: 0, rate: 0.015, cap: 2_000, flatFeeThreshold: 0 },
+  // A custody account we already control: an internal book transfer, not a
+  // rail movement, so only the partner's handling fee applies.
+  custody: { flatFee: 0, rate: 0.001, cap: 400, flatFeeThreshold: 0 },
 };
 
 let activeRailCosts: Record<SourceType, RailCostTerms> = { ...LIST_PRICE_RAIL_COSTS };
