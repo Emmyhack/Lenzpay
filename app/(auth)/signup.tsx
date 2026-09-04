@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -6,7 +7,11 @@ import { z } from 'zod';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Button } from '@/components/ui/Button';
+import { GoogleButton } from '@/components/auth/GoogleButton';
+import { Icon } from '@/components/ui/Icon';
 import { showToast } from '@/components/ui/Toast';
+import { googleAuth, initialsFor, type GoogleIdentity } from '@/services/auth';
+import { useAuthStore } from '@/store/auth';
 
 const signupSchema = z.object({
   fullName: z
@@ -25,9 +30,15 @@ type SignupForm = z.infer<typeof signupSchema>;
 
 export default function SignupScreen() {
   const router = useRouter();
+  const setUser = useAuthStore((s) => s.setUser);
+
+  const [google, setGoogle] = useState<GoogleIdentity | null>(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
@@ -35,9 +46,57 @@ export default function SignupScreen() {
     mode: 'onBlur',
   });
 
+  /**
+   * Google fills the form and proves the email. It does not finish the signup.
+   *
+   * A LenzPay account is keyed to a phone number — that is what a NUBAN
+   * lookup, a direct-debit mandate and KYC are tied to, and what a payee sees.
+   * So the OTP step stays even for a Google signup; skipping it would create an
+   * account that cannot be paid to or from.
+   */
+  const handleGoogle = async () => {
+    setGoogleBusy(true);
+    const result = await googleAuth().signIn();
+    setGoogleBusy(false);
+
+    if (!result.ok) {
+      if (result.reason === 'failed') showToast('error', 'Google sign-in failed', result.message);
+      return;
+    }
+
+    const { identity } = result;
+    if (!identity.emailVerified) {
+      // Google itself says the address is unproven, so we must not present it
+      // as verified further down the flow.
+      showToast('error', 'Unverified email', 'Verify this address with Google, then try again.');
+      return;
+    }
+
+    setGoogle(identity);
+    setValue('fullName', identity.fullName, { shouldValidate: true });
+  };
+
   const onSubmit = async (values: SignupForm) => {
-    // Replace with services/auth.ts once a real signup endpoint exists.
+    // Replace with a real signup endpoint; services/auth.ts holds the seam.
     await new Promise((r) => setTimeout(r, 400));
+
+    if (google) {
+      setUser({
+        id: `usr_${google.googleId}`,
+        fullName: values.fullName,
+        phone: `+234${values.phone}`,
+        email: google.email,
+        emailVerified: true,
+        googleId: google.googleId,
+        authProvider: 'google',
+        avatarInitials: initialsFor(values.fullName, google.email),
+        kycStatus: 'unstarted',
+        biometricPref: 'none',
+        referralCode: values.referralCode?.trim() || '',
+        createdAt: new Date(),
+      });
+    }
+
     router.push({ pathname: '/(auth)/otp', params: { phone: values.phone } });
   };
 
@@ -50,6 +109,27 @@ export default function SignupScreen() {
       <ScreenHeader title="Create Account" />
 
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+        {google ? (
+          <View style={styles.googleLinked}>
+            <Icon name="checkmark-circle" size={16} color={Colors.success} />
+            <View style={styles.googleLinkedText}>
+              <Text style={styles.googleLinkedTitle}>{google.email}</Text>
+              <Text style={styles.googleLinkedSubtitle}>
+                Email verified by Google. Add your phone number to finish.
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <>
+            <GoogleButton loading={googleBusy} onPress={handleGoogle} />
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+          </>
+        )}
+
         <Controller
           control={control}
           name="fullName"
@@ -134,6 +214,46 @@ const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  googleLinked: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+  googleLinkedText: {
+    flex: 1,
+  },
+  googleLinkedTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: Typography.bodySm.fontSize,
+    color: Colors.onSurface,
+  },
+  googleLinkedSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.onSurfaceVariant,
+    marginTop: 2,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.xl,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.outlineVariant,
+  },
+  dividerText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceMuted,
+    marginHorizontal: Spacing.md,
   },
   form: {
     paddingHorizontal: Spacing.xl,
