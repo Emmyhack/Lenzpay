@@ -18,6 +18,8 @@ import { DEFAULT_PRIORITY_WEIGHT } from '@/types/payment';
 import { useSourcesStore } from '@/store/sources';
 import { MOCK_TRANSACTIONS } from '@/mock/data';
 import { showToast } from '@/components/ui/Toast';
+import { paymentEngine, guaranteeFor, spendableBalance } from '@/services/orchestration';
+import { capabilityPresentation } from '@/components/payment/GuaranteeRows';
 
 function UsageBar({ ratio }: { ratio: number }) {
   const width = useSharedValue(0);
@@ -73,6 +75,11 @@ export default function SourceDetailScreen() {
     router.back();
   };
 
+  const capabilities = paymentEngine.capabilities().resolve(source);
+  const guarantee = capabilityPresentation(guaranteeFor(capabilities));
+  const spendable = spendableBalance(source);
+  const withheld = Math.max(0, source.rawBalance - spendable);
+
   return (
     <View style={styles.wrap}>
       <ScreenHeader title={source.label} subtitle={source.accountMask} />
@@ -95,6 +102,29 @@ export default function SourceDetailScreen() {
 
         <Text style={styles.balanceLabel}>Balance</Text>
         <Text style={styles.balance}>₦{Math.round(source.balance).toLocaleString()}</Text>
+        {withheld > 0 ? (
+          <Text style={styles.balanceSpendable}>
+            ₦{Math.round(spendable).toLocaleString()} available · ₦
+            {Math.round(withheld).toLocaleString()} already committed
+          </Text>
+        ) : null}
+
+        {/* What this source can actually do (ADR-012). Users are entitled to
+            know which of their accounts can be held and which cannot — it is
+            the difference between a payment that is secured and one Lenz is
+            underwriting on their behalf. */}
+        <View style={styles.capabilityRow}>
+          <Icon name={guarantee.icon} size={13} color={guarantee.color} />
+          <Text style={[styles.capabilityLabel, { color: guarantee.color }]}>
+            {guarantee.label}
+          </Text>
+          <Text style={styles.capabilityDetail}>{guarantee.detail}</Text>
+        </View>
+        <Text style={styles.capabilityNote}>
+          {capabilities.balanceVisibility === 'none'
+            ? 'Your issuer doesn’t share this balance with us, so we authorise the funds instead of reading them.'
+            : `Balance last checked ${formatAge(source.lastSynced)}.`}
+        </Text>
 
         <View style={styles.actionsRow}>
           <Button
@@ -224,6 +254,34 @@ const styles = StyleSheet.create({
     color: Colors.onSurface,
     marginTop: Spacing.xs,
   },
+  balanceSpendable: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceMuted,
+    marginTop: 2,
+  },
+  capabilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
+  },
+  capabilityLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+  },
+  capabilityDetail: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
+  },
+  capabilityNote: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    lineHeight: 15,
+    color: Colors.onSurfaceMuted,
+    marginTop: Spacing.xs,
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: Spacing.md,
@@ -333,3 +391,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
 });
+
+/** Relative age of a balance reading, for the freshness note. */
+function formatAge(lastSynced: Date): string {
+  const minutes = Math.floor((Date.now() - lastSynced.getTime()) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}

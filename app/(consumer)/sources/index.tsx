@@ -8,9 +8,12 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { useSourcesStore } from '@/store/sources';
 import type { SourceType } from '@/types/payment';
 
-const ADD_OPTIONS: { key: SourceType; title: string; subtitle: string; icon: IconName; route: '/(consumer)/sources/bank' | '/(consumer)/sources/wallet' | '/(consumer)/sources/usd' | '/(consumer)/sources/crypto' }[] = [
+const ADD_OPTIONS: { key: SourceType; title: string; subtitle: string; icon: IconName; route: '/(consumer)/sources/bank' | '/(consumer)/sources/wallet' | '/(consumer)/sources/usd' | '/(consumer)/sources/crypto' | '/(consumer)/sources/card' }[] = [
   { key: 'bank', title: 'Nigerian Bank', subtitle: 'Access, GTBank, Zenith & more', icon: 'business-outline', route: '/(consumer)/sources/bank' },
   { key: 'wallet', title: 'Mobile Wallet', subtitle: 'OPay, Kuda, PalmPay, Moniepoint', icon: 'phone-portrait-outline', route: '/(consumer)/sources/wallet' },
+  // The only rail that can hold funds rather than just move them (ADR-012),
+  // which is worth saying on the card itself.
+  { key: 'card', title: 'Debit Card', subtitle: 'Funds held before they’re taken', icon: 'card-outline', route: '/(consumer)/sources/card' },
   { key: 'usd', title: 'USD Account', subtitle: 'Grey, Geegpay, Chipper Cash', icon: 'cash-outline', route: '/(consumer)/sources/usd' },
   { key: 'crypto', title: 'Crypto Wallet', subtitle: 'BTC, USDT, ETH', icon: 'logo-bitcoin', route: '/(consumer)/sources/crypto' },
 ];
