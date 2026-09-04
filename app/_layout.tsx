@@ -14,9 +14,15 @@ import * as SplashScreen from 'expo-splash-screen';
 import ToastLib from 'react-native-toast-message';
 import { toastConfig } from '@/components/ui/Toast';
 import { Colors } from '@/constants/theme';
+import { configureEngineForRuntime } from '@/services/engineSetup';
 
 // Prevent splash from auto-hiding before fonts load
 SplashScreen.preventAutoHideAsync();
+
+// Bind the orchestration engine's injected dependencies before anything can
+// plan a payment. Without this, `prepare()` verifies float-backed legs against
+// the balance the plan was built from — which is not verification (ADR-013).
+configureEngineForRuntime();
 
 const queryClient = new QueryClient({
   defaultOptions: {
