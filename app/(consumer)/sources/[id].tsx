@@ -8,6 +8,7 @@ import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Badge, type BadgeKind } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { Money } from '@/components/ui/Money';
 import { CryptoLogo, hasCryptoLogo } from '@/components/ui/CryptoLogo';
 import { BankLogo } from '@/components/ui/BankLogo';
 import { TransactionRow } from '@/components/shared/TransactionRow';
@@ -101,7 +102,11 @@ export default function SourceDetailScreen() {
         </View>
 
         <Text style={styles.balanceLabel}>Balance</Text>
-        <Text style={styles.balance}>₦{Math.round(source.balance).toLocaleString()}</Text>
+        <Money
+          value={Math.round(source.balance)}
+          size={Typography.displayMd.fontSize}
+          style={styles.balance}
+        />
         {withheld > 0 ? (
           <Text style={styles.balanceSpendable}>
             ₦{Math.round(spendable).toLocaleString()} available · ₦
@@ -248,11 +253,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: Spacing.lg,
   },
-  balance: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: Typography.displayMd.fontSize,
-    color: Colors.onSurface,
-    marginTop: Spacing.xs,
+  balance: {    marginTop: Spacing.xs,
   },
   balanceSpendable: {
     fontFamily: 'Inter_400Regular',

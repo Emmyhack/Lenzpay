@@ -14,6 +14,7 @@ import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { Money } from '@/components/ui/Money';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useRewardsStore } from '@/store/rewards';
 import { CASHBACK_RATES, CATEGORY_ICON, REWARD_POINT_VALUE } from '@/mock/data';
@@ -81,7 +82,7 @@ export default function RewardsScreen() {
             translate; showing what it is worth is the whole point of a
             rewards programme. */}
         <Text style={styles.eyebrow}>Your points are worth</Text>
-        <Text style={styles.value}>₦{pointsValueNGN.toLocaleString()}</Text>
+        <Money value={pointsValueNGN} size={Typography.displayLg.fontSize} style={styles.value} />
         <Text style={styles.subValue}>
           {points.toLocaleString()} pts · ₦{REWARD_POINT_VALUE.toFixed(2)} each
         </Text>
@@ -280,11 +281,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   value: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: Typography.displayLg.fontSize,
     lineHeight: Typography.displayLg.lineHeight,
-    letterSpacing: Typography.displayLg.letterSpacing,
-    color: Colors.onSurface,
     paddingHorizontal: Spacing.xl,
     marginTop: Spacing.xs,
   },

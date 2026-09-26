@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ScreenHeader } from '@/components/shared/ScreenHeader';
 import { Card } from '@/components/ui/Card';
+import { Money } from '@/components/ui/Money';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { BankLogo } from '@/components/ui/BankLogo';
@@ -147,9 +148,13 @@ export default function TransactionDetailScreen() {
           />
         </View>
 
-        <Text style={[styles.amount, { color: isCredit ? Colors.success : Colors.onSurface }]}>
-          {isCredit ? '+' : '−'}₦{transaction.amount.toLocaleString()}
-        </Text>
+        <Money
+          value={transaction.amount}
+          size={Typography.displayMd.fontSize}
+          color={isCredit ? Colors.success : Colors.onSurface}
+          sign={isCredit ? '+' : '−'}
+          style={styles.amount}
+        />
         <Text style={styles.merchant}>{transaction.merchantName}</Text>
 
         <View style={[styles.statusPill, { backgroundColor: status.tone + '1f' }]}>
@@ -392,10 +397,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: Spacing.lg,
   },
-  amount: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: Typography.displayMd.fontSize,
-    letterSpacing: Typography.displayMd.letterSpacing,
+  amount: {    letterSpacing: Typography.displayMd.letterSpacing,
     marginTop: Spacing.lg,
   },
   merchant: {
