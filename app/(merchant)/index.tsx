@@ -9,6 +9,7 @@ import { QuickActions } from '@/components/shared/QuickActions';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
+import { Money } from '@/components/ui/Money';
 import { useMerchantStore } from '@/store/merchant';
 import { fetchMerchantPayments, fetchSettlements } from '@/services/merchant';
 import { REVENUE_LAST_7_DAYS } from '@/mock/merchant';
@@ -51,7 +52,7 @@ export default function MerchantHomeScreen() {
         </View>
 
         <Text style={styles.revenueLabel}>TODAY'S REVENUE</Text>
-        <Text style={styles.revenue}>₦{todayRevenue.toLocaleString()}</Text>
+        <Money value={todayRevenue} size={Typography.displayLg.fontSize} style={styles.revenue} />
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
@@ -134,11 +135,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: Spacing.xl,
   },
-  revenue: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: Typography.displayLg.fontSize,
-    lineHeight: Typography.displayLg.lineHeight,
-    color: Colors.onSurface,
+  revenue: {    lineHeight: Typography.displayLg.lineHeight,
     marginTop: Spacing.xs,
   },
   statsRow: {

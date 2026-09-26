@@ -13,6 +13,7 @@ import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { Money } from '@/components/ui/Money';
 import { usePaymentStore } from '@/store/payment';
 
 function formatTime(date: Date) {
@@ -75,7 +76,12 @@ export default function SuccessScreen() {
 
       <Text style={styles.title}>Payment Sent!</Text>
       <Text style={styles.merchant}>{transaction.merchantName}</Text>
-      <Text style={styles.amount}>₦{transaction.amount.toLocaleString()}</Text>
+      <Money
+        value={transaction.amount}
+        size={Typography.displayMd.fontSize}
+        color={Colors.primary}
+        style={styles.amount}
+      />
 
       <Animated.View style={[styles.pointsBadge, badgeStyle]}>
         <Icon name="star" size={13} color={Colors.primary} />
@@ -175,11 +181,7 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
     marginTop: Spacing.xs,
   },
-  amount: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: Typography.displayMd.fontSize,
-    color: Colors.primary,
-    marginTop: Spacing.md,
+  amount: {    marginTop: Spacing.md,
   },
   pointsBadge: {
     flexDirection: 'row',
